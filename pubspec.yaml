@@ -1,0 +1,58 @@
+name: architectural_ai
+description: "AI-powered architectural design transformation app"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  
+  # HTTP & Networking
+  http: ^1.2.0
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  
+  # Image Handling
+  image_picker: ^1.0.7
+  cached_network_image: ^3.3.1
+  
+  # Notifications
+  flutter_local_notifications: ^17.2.1
+  
+  # Utils
+  intl: ^0.20.2
+
+  # Save images to gallery
+  gal: ^2.3.0
+  path_provider: ^2.1.2
+
+  # Share
+  share_plus: ^10.1.4
+
+  # Animations
+  lottie: ^3.3.1
+
+  # In-App Purchases
+  purchases_flutter: ^9.12.3
+  purchases_ui_flutter: ^9.12.3
+  uuid: ^4.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
