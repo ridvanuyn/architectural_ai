@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:math' show sin;
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../core/localization/localization_extension.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
 import '../theme/app_theme.dart';
@@ -13,20 +11,19 @@ import '../widgets/skeleton_loader.dart';
 import 'before_after_screen.dart';
 import 'inspiration_screen.dart';
 import 'style_selection_screen.dart';
-import 'store_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   static const List<_CategoryItem> _categories = [
     _CategoryItem(name: 'Harry Potter', imageUrl: 'https://images.unsplash.com/photo-1551269901-5c5e14c25df7?w=400', icon: Icons.auto_fix_high),
-    _CategoryItem(name: 'Star Wars', imageUrl: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=400', icon: Icons.rocket_launch),
+    _CategoryItem(name: 'Star Wars', imageUrl: 'https://images.unsplash.com/photo-1547700055-b61cacebece9?w=400', icon: Icons.rocket_launch),
     _CategoryItem(name: 'The Matrix', imageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400', icon: Icons.code),
-    _CategoryItem(name: 'Game of Thrones', imageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400', icon: Icons.shield),
-    _CategoryItem(name: 'Stranger Things', imageUrl: 'https://images.unsplash.com/photo-1509248961895-b23aad4f24b4?w=400', icon: Icons.lightbulb),
-    _CategoryItem(name: 'Cyberpunk', imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400', icon: Icons.memory),
-    _CategoryItem(name: 'Fantasy Worlds', imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400', icon: Icons.castle),
-    _CategoryItem(name: 'Historical', imageUrl: 'https://images.unsplash.com/photo-1539650116574-8efeb43e2750?w=400', icon: Icons.account_balance),
+    _CategoryItem(name: 'Game of Thrones', imageUrl: 'https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?w=400', icon: Icons.shield),
+    _CategoryItem(name: 'Anime Worlds', imageUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400', icon: Icons.animation),
+    _CategoryItem(name: 'Gaming Realms', imageUrl: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=400', icon: Icons.sports_esports),
+    _CategoryItem(name: 'Luxury Living', imageUrl: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400', icon: Icons.diamond),
+    _CategoryItem(name: 'Time Travel', imageUrl: 'https://images.unsplash.com/photo-1461360370896-922624d12a74?w=400', icon: Icons.history_edu),
   ];
 
   Future<void> _pickImage(BuildContext context, ImageSource source) async {
@@ -206,105 +203,51 @@ class HomeScreen extends StatelessWidget {
     return Consumer<AppProvider>(
       builder: (context, appProvider, child) {
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: const Color(0xFFF9F9FB),
           body: SafeArea(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
-                // Header with token badge and tier toggle
+                // App bar: "Architectural AI" left + avatar right
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Token badge
+                    const Text(
+                      'Architectural AI',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1C1D),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () {
                         HapticService.lightImpact();
-                        Navigator.pushNamed(context, StoreScreen.routeName);
+                        // Navigate to profile
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
-                          color: AppColors.tagBackground,
-                          borderRadius: BorderRadius.circular(20),
+                          color: const Color(0xFFF3F3F5),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFE0E0E0),
+                            width: 0.5,
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.token, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${appProvider.tokenBalance} Tokens',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                context.tr('buy'),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // Tier toggle: FREE → PRO+ → BEST
-                    GestureDetector(
-                      onTap: () {
-                        appProvider.togglePremium();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: appProvider.tier == 'best'
-                              ? const Color(0xFFEF4444)
-                              : appProvider.tier == 'pro'
-                                  ? const Color(0xFF6C63FF)
-                                  : Colors.grey.shade400,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              appProvider.tier == 'best'
-                                  ? Icons.diamond
-                                  : appProvider.tier == 'pro'
-                                      ? Icons.star
-                                      : Icons.star_border,
-                              size: 16,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${appProvider.tierLabel} · ${appProvider.tierMultiplier}T',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
+                        child: const Icon(
+                          Icons.person_outline,
+                          size: 18,
+                          color: Color(0xFF6B7280),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                // Upload / Selected Photo Card
+                const SizedBox(height: 20),
+                // Hero Card / Selected Photo Card
                 appProvider.selectedImage != null
                     ? GestureDetector(
                         onTap: () => _showImageSourceSheet(context),
@@ -313,13 +256,6 @@ class HomeScreen extends StatelessWidget {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(24),
@@ -334,7 +270,7 @@ class HomeScreen extends StatelessWidget {
                                       end: Alignment.bottomCenter,
                                       colors: [
                                         Colors.transparent,
-                                        Colors.black.withOpacity(0.4),
+                                        Colors.black.withValues(alpha: 0.4),
                                       ],
                                     ),
                                   ),
@@ -349,7 +285,7 @@ class HomeScreen extends StatelessWidget {
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(vertical: 10),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.9),
+                                            color: Colors.white.withValues(alpha: 0.9),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: const Row(
@@ -371,7 +307,7 @@ class HomeScreen extends StatelessWidget {
                                         child: Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: Colors.red.withOpacity(0.8),
+                                            color: Colors.red.withValues(alpha: 0.8),
                                             borderRadius: BorderRadius.circular(10),
                                           ),
                                           child: const Icon(Icons.delete_outline, size: 18, color: Colors.white),
@@ -388,52 +324,57 @@ class HomeScreen extends StatelessWidget {
                     : GestureDetector(
                         onTap: () => _showImageSourceSheet(context),
                         child: Container(
-                          height: 160,
-                          width: double.infinity,
+                          height: 200,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF4F3F8),
-                            borderRadius: BorderRadius.circular(20),
+                            gradient: const LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [Color(0xFF4400B6), Color(0xFF5D21DF), Color(0xFF3B82F6)],
+                            ),
+                            borderRadius: BorderRadius.circular(24),
                           ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              TweenAnimationBuilder<double>(
-                                tween: Tween(begin: 0, end: 6.28),
-                                duration: const Duration(seconds: 3),
-                                builder: (context, value, child) {
-                                  return Transform.translate(
-                                    offset: Offset(0, 3 * sin(value)),
-                                    child: child,
-                                  );
-                                },
-                                child: Icon(Icons.add_photo_alternate_outlined, size: 36, color: Colors.grey.shade400),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Add Photo',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey.shade600,
-                                  letterSpacing: 0.3,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.auto_awesome, size: 28, color: Colors.white.withValues(alpha: 0.9)),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'Redesign your\nspace',
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    height: 1.1,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  'AI-powered magic for your room',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                const SizedBox(height: 28),
-                // Recent designs
+                // Recent Projects
                 if (appProvider.designs.isNotEmpty) ...[
+                  const SizedBox(height: 28),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        context.tr('recent_designs'),
-                        style: const TextStyle(
+                      const Text(
+                        'Recent Projects',
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Color(0xFF1A1C1D),
                         ),
                       ),
                       TextButton(
@@ -441,10 +382,10 @@ class HomeScreen extends StatelessWidget {
                           HapticService.lightImpact();
                           // Navigate to history
                         },
-                        child: Text(
-                          context.tr('see_all'),
+                        child: const Text(
+                          'View All',
                           style: TextStyle(
-                            color: AppColors.primary,
+                            color: Color(0xFF5D21DF),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -452,19 +393,37 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildMasonryGrid(context, appProvider),
-                  const SizedBox(height: 28),
+                  SizedBox(
+                    height: 140,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: appProvider.designs.length.clamp(0, 6),
+                      separatorBuilder: (_, __) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final design = appProvider.designs[index];
+                        return _RecentProjectCard(
+                          design: design,
+                          onTap: () {
+                            HapticService.lightImpact();
+                            appProvider.setCurrentDesign(design);
+                            Navigator.pushNamed(context, BeforeAfterScreen.routeName);
+                          },
+                        );
+                      },
+                    ),
+                  ),
                 ],
-                // Inspiration Gallery
+                const SizedBox(height: 28),
+                // Discover Styles
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      context.tr('inspiration_gallery'),
-                      style: const TextStyle(
+                    const Text(
+                      'Discover Styles',
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: Color(0xFF1A1C1D),
                       ),
                     ),
                     TextButton(
@@ -473,13 +432,13 @@ class HomeScreen extends StatelessWidget {
                         Navigator.pushNamed(
                           context,
                           InspirationScreen.routeName,
-                          arguments: {'category': 'Fantasy Worlds'},
+                          arguments: {'category': 'all'},
                         );
                       },
-                      child: Text(
-                        context.tr('see_all'),
+                      child: const Text(
+                        'View All',
                         style: TextStyle(
-                          color: AppColors.primary,
+                          color: Color(0xFF5D21DF),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -545,10 +504,9 @@ class _CategoryCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -616,6 +574,107 @@ class _CategoryCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RecentProjectCard extends StatelessWidget {
+  const _RecentProjectCard({
+    required this.design,
+    required this.onTap,
+  });
+
+  final dynamic design;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = design.transformedImageUrl ?? design.originalImageUrl;
+    final isLocalFile = imageUrl != null && imageUrl.startsWith('/');
+
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 180,
+        height: 140,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (isLocalFile)
+                Image.file(
+                  File(imageUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFFF3F3F5),
+                    child: const Icon(Icons.image, color: Color(0xFF9CA3AF)),
+                  ),
+                )
+              else
+                SkeletonImage(
+                  imageUrl: imageUrl ?? '',
+                  fit: BoxFit.cover,
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.65),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        design.styleName ?? 'Design',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatTimeAgo(design.createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 60) return 'Updated ${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return 'Updated ${diff.inHours}h ago';
+    if (diff.inDays < 7) return 'Updated ${diff.inDays}d ago';
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
 

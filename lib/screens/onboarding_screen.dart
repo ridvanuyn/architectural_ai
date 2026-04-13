@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/localization/localization_extension.dart';
+import '../core/models/specialty_world.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
 import '../core/services/notification_service.dart';
+import '../core/services/world_service.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
 
@@ -161,11 +165,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPageChanged: (index) {
                   setState(() => _pageIndex = index);
                 },
-                children: const [
-                  _UnlimitedPossibilitiesPage(),
-                  _DreamsSavedPage(),
+                children: [
+                  const _UnlimitedPossibilitiesPage(),
+                  const _DreamsSavedPage(),
                   _ReadyToSeeMagicPage(),
-                  _InteractiveDemoPage(),
+                  const _InteractiveDemoPage(),
                 ],
               ),
             ),
@@ -252,7 +256,7 @@ class _UnlimitedPossibilitiesPage extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           const Text(
-            'Unlimited Possibilities',
+            '1000+ Design Themes',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -261,7 +265,7 @@ class _UnlimitedPossibilitiesPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '8 distinct styles to match your personality.',
+            'From minimalist zen to cyberpunk neon — explore an endless library of AI-powered styles or create your own unique aesthetic.',
             style: TextStyle(
               fontSize: 15,
               color: AppColors.textSecondary,
@@ -486,7 +490,7 @@ class _DreamsSavedPage extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           const Text(
-            'Your dreams are always\nsaved.',
+            'Your Vision, AI Powered',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 26,
@@ -497,7 +501,7 @@ class _DreamsSavedPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No sign-in required. Your architectural designs are stored securely on your device, giving you instant access to your creative history.',
+            'Simply snap a photo of any room and watch our AI transform it instantly. Customize every detail with natural language instructions.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -507,7 +511,7 @@ class _DreamsSavedPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           // Feature list
-          _FeatureCheckItem(text: '8 Unique architectural styles'),
+          _FeatureCheckItem(text: '1000+ Unique architectural styles'),
           const SizedBox(height: 12),
           _FeatureCheckItem(text: 'Token-based generation system'),
         ],
@@ -546,99 +550,149 @@ class _FeatureCheckItem extends StatelessWidget {
   }
 }
 
-// Page 3: Ready to see the magic?
-class _ReadyToSeeMagicPage extends StatelessWidget {
+// Page 3: Iconic Worlds — random featured worlds from store
+class _ReadyToSeeMagicPage extends StatefulWidget {
   const _ReadyToSeeMagicPage();
 
   @override
+  State<_ReadyToSeeMagicPage> createState() => _ReadyToSeeMagicPageState();
+}
+
+class _ReadyToSeeMagicPageState extends State<_ReadyToSeeMagicPage> {
+  final WorldService _worldService = WorldService();
+  List<SpecialtyWorld> _featured = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeaturedWorlds();
+  }
+
+  Future<void> _loadFeaturedWorlds() async {
+    try {
+      final worlds = await _worldService.getWorlds();
+      if (mounted && worlds.isNotEmpty) {
+        final shuffled = List<SpecialtyWorld>.from(worlds)..shuffle();
+        setState(() {
+          _featured = shuffled.take(4).toList();
+          _isLoading = false;
+        });
+        return;
+      }
+    } catch (e) {
+      debugPrint('Failed to load worlds for onboarding: $e');
+    }
+    // Fallback to store defaults
+    if (mounted) {
+      final defaults = List<SpecialtyWorld>.from(
+        _fallbackWorlds(),
+      )..shuffle();
+      setState(() {
+        _featured = defaults.take(4).toList();
+        _isLoading = false;
+      });
+    }
+  }
+
+  static List<SpecialtyWorld> _fallbackWorlds() {
+    return [
+      SpecialtyWorld(id: 'hobbit-hole', name: 'Hobbit Hole', description: 'Middle Earth Style', category: 'fantasy', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/hobbit-hole.jpg', prompt: ''),
+      SpecialtyWorld(id: 'gryffindor-room', name: 'Gryffindor Room', description: 'Bravery & Gold', category: 'fantasy', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/gryffindor-room.jpg', prompt: ''),
+      SpecialtyWorld(id: 'cyberpunk-2077', name: 'Cyberpunk 2077', description: 'Neon Night City', category: 'futuristic', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/cyberpunk-2077.jpg', prompt: ''),
+      SpecialtyWorld(id: 'victorian-1800s', name: '1800s Victorian', description: 'Gothic Elegance', category: 'historical', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/victorian-1800s.jpg', prompt: ''),
+    ];
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final names = _featured.map((w) => w.name).join(', ');
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // Tokens badge
+          // Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFFF9800),
+              gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.card_giftcard, size: 16, color: Colors.white),
+                Icon(Icons.public, size: 14, color: Colors.white),
                 SizedBox(width: 6),
-                Text(
-                  '2 TOKENS GIFTED',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+                Text('ICONIC WORLDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          // Image
+          const SizedBox(height: 20),
+          // 2x2 grid of featured worlds
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Image.network(
-                'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (_, __, ___) => Container(
-                  color: AppColors.cardBackground,
-                  child: const Center(
-                    child: Icon(Icons.home, size: 60, color: AppColors.textMuted),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              physics: const NeverScrollableScrollPhysics(),
+              children: _featured.map((world) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        world.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(color: AppColors.cardBackground),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                            stops: const [0.4, 1.0],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 8, bottom: 8,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              world.name,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                            ),
+                            Text(
+                              world.category,
+                              style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.7)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                );
+              }).toList(),
             ),
           ),
-          const SizedBox(height: 24),
-          // Title
+          const SizedBox(height: 20),
           const Text(
-            'Ready to see the magic?',
+            'Iconic Worlds Await',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 12),
-          // Description
-          RichText(
+          const SizedBox(height: 10),
+          Text(
+            'Transform your room into $names and many more. 1000+ themed universes to explore.',
             textAlign: TextAlign.center,
-            text: TextSpan(
-              style: const TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-              children: [
-                const TextSpan(text: "We've given you "),
-                TextSpan(
-                  text: '2 free tokens',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const TextSpan(text: ' to start redesigning your space in 8 unique styles.'),
-              ],
-            ),
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
           ),
           const SizedBox(height: 16),
         ],
@@ -655,11 +709,92 @@ class _InteractiveDemoPage extends StatefulWidget {
   State<_InteractiveDemoPage> createState() => _InteractiveDemoPageState();
 }
 
-class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
+class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
+    with SingleTickerProviderStateMixin {
   double _sliderPosition = 0.5;
+  int _selectedStyleIndex = 0;
+  bool _isGenerating = false;
+
+  static const _originalUrl =
+      'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/original.jpg';
+
+  static const _demoStyles = [
+    {
+      'id': 'japandi',
+      'name': 'Japandi',
+      'url':
+          'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/japandi.jpg'
+    },
+    {
+      'id': 'gryffindor',
+      'name': 'Gryffindor',
+      'url':
+          'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/v2/gryffindor.jpg'
+    },
+    {
+      'id': 'cyberpunk',
+      'name': 'Cyberpunk',
+      'url':
+          'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/cyberpunk.jpg'
+    },
+    {
+      'id': 'minecraft',
+      'name': 'Minecraft',
+      'url':
+          'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/v2/minecraft.jpg'
+    },
+    {
+      'id': 'anime',
+      'name': 'Anime',
+      'url':
+          'https://architectural-ai-demo.s3.eu-central-1.amazonaws.com/demo/anime.jpg'
+    },
+  ];
+
+  late AnimationController _shimmerController;
+  late Animation<double> _shimmerAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _shimmerAnimation = Tween<double>(begin: -2, end: 2).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  void _selectStyle(int index) {
+    if (index == _selectedStyleIndex || _isGenerating) return;
+    HapticService.lightImpact();
+    setState(() {
+      _isGenerating = true;
+      _selectedStyleIndex = index;
+    });
+    _shimmerController.repeat();
+
+    // Fake generation delay, then reveal
+    Timer(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        _shimmerController.stop();
+        setState(() => _isGenerating = false);
+        HapticService.lightImpact();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selectedStyle = _demoStyles[_selectedStyleIndex];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
@@ -681,7 +816,7 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           const Text(
             'Try it yourself.',
             style: TextStyle(
@@ -690,15 +825,70 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Slide to see the transformation.',
+            'Tap a style, then slide to compare.',
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+          // Style chips - horizontal scrollable row
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _demoStyles.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final style = _demoStyles[index];
+                final isSelected = index == _selectedStyleIndex;
+                return GestureDetector(
+                  onTap: () => _selectStyle(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.background,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.cardBorder,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: Icon(Icons.auto_awesome,
+                                size: 14, color: Colors.white),
+                          ),
+                        Text(
+                          style['name']!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
           // Before/After slider
           Expanded(
             child: Container(
@@ -717,20 +907,22 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                       onHorizontalDragUpdate: (details) {
                         setState(() {
                           _sliderPosition += details.delta.dx / width;
-                          _sliderPosition = _sliderPosition.clamp(0.05, 0.95);
+                          _sliderPosition =
+                              _sliderPosition.clamp(0.05, 0.95);
                         });
                       },
                       child: Stack(
                         children: [
-                          // After image (Japandi style)
+                          // After image (selected style result)
                           Positioned.fill(
                             child: Image.network(
-                              'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800',
+                              selectedStyle['url']!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
+                              errorBuilder: (_, __, ___) =>
+                                  Container(color: Colors.grey.shade200),
                             ),
                           ),
-                          // Before image
+                          // Before image (original)
                           Positioned(
                             left: 0,
                             top: 0,
@@ -744,20 +936,87 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                                   width: width,
                                   height: height,
                                   child: Image.network(
-                                    'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=800',
+                                    _originalUrl,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(color: Colors.brown.shade200),
+                                    errorBuilder: (_, __, ___) => Container(
+                                        color: Colors.brown.shade200),
                                   ),
                                 ),
                               ),
                             ),
                           ),
+                          // Shimmer overlay during "generation"
+                          if (_isGenerating)
+                            Positioned.fill(
+                              child: AnimatedBuilder(
+                                animation: _shimmerAnimation,
+                                builder: (context, child) {
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment(
+                                            _shimmerAnimation.value - 1, 0),
+                                        end: Alignment(
+                                            _shimmerAnimation.value + 1, 0),
+                                        colors: [
+                                          Colors.white
+                                              .withValues(alpha: 0.0),
+                                          Colors.white
+                                              .withValues(alpha: 0.4),
+                                          Colors.white
+                                              .withValues(alpha: 0.0),
+                                        ],
+                                        stops: const [0.0, 0.5, 1.0],
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                                vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.6),
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            SizedBox(width: 10),
+                                            Text(
+                                              'Generating...',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           // Original tag
                           Positioned(
                             left: 12,
                             bottom: 12,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFF9800),
                                 borderRadius: BorderRadius.circular(8),
@@ -772,19 +1031,20 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                               ),
                             ),
                           ),
-                          // Style tag
+                          // Style tag (dynamic based on selection)
                           Positioned(
                             right: 12,
                             bottom: 12,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF4CAF50),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
-                                'JAPANDI',
-                                style: TextStyle(
+                              child: Text(
+                                selectedStyle['name']!.toUpperCase(),
+                                style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -797,7 +1057,8 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                             left: width * _sliderPosition - 1.5,
                             top: 0,
                             bottom: 0,
-                            child: Container(width: 3, color: Colors.white),
+                            child: Container(
+                                width: 3, color: Colors.white),
                           ),
                           // Slider handle
                           Positioned(
@@ -811,12 +1072,14 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.3),
+                                    color: Colors.black
+                                        .withValues(alpha: 0.3),
                                     blurRadius: 8,
                                   ),
                                 ],
                               ),
-                              child: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
+                              child: const Icon(Icons.swap_horiz,
+                                  color: Colors.white, size: 20),
                             ),
                           ),
                         ],
@@ -824,18 +1087,19 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage> {
                     );
                   },
                 ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Info text
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Info text
           Row(
             children: [
-              Icon(Icons.info_outline, size: 14, color: AppColors.textMuted),
+              Icon(Icons.info_outline,
+                  size: 14, color: AppColors.textMuted),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Choose from 8 unique styles. Renders use 1 token each.',
+                  'Choose from 1000+ unique styles. Renders use 1 token each.',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,

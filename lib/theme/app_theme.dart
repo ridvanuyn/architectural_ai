@@ -1,29 +1,33 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary blue
-  static const primary = Color(0xFF4A90D9);
-  static const primaryDark = Color(0xFF3A7BC8);
-  
+  // Primary purple
+  static const primary = Color(0xFF5D21DF);
+  static const primaryDark = Color(0xFF4400B6);
+  static const primaryDeep = Color(0xFF4400B6);
+  static const primaryLight = Color(0xFF5D21DF);
+
   // Background colors
-  static const background = Color(0xFFF5F5F5);
-  static const surface = Color(0xFFFFFFFF);
+  static const background = Color(0xFFF9F9FB);
+  static const surface = Color(0xFFF9F9FB);
+  static const surfaceContainer = Color(0xFFF3F3F5);
   static const cardBackground = Color(0xFFFFFFFF);
   static const cardBorder = Color(0xFFE8E8E8);
-  
+
   // Text colors
-  static const textPrimary = Color(0xFF1A1A1A);
+  static const textPrimary = Color(0xFF1A1C1D);
+  static const textDark = Color(0xFF1A1C1D);
   static const textSecondary = Color(0xFF6B7280);
   static const textMuted = Color(0xFF9CA3AF);
-  
+
   // Accent colors
   static const success = Color(0xFF10B981);
   static const warning = Color(0xFFF59E0B);
-  
+
   // Gradient for splash
   static const gradientStart = Color(0xFFE8F4FD);
   static const gradientEnd = Color(0xFFD4E8F8);
-  
+
   // Tag colors
   static const tagBackground = Color(0xFFE3F2FD);
   static const tagText = Color(0xFF1976D2);

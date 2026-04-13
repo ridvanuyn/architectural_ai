@@ -62,46 +62,28 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFE8F4FD),
-              Color(0xFFD4E8F8),
-              Color(0xFFCDE4F6),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: Colors.white,
+      body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
             child: Column(
               children: [
                 const Spacer(flex: 2),
-                // Logo Icon
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+                // App Icon
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    'ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png',
+                    width: 120,
+                    height: 120,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
+                        borderRadius: BorderRadius.circular(28),
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.architecture,
-                      size: 48,
-                      color: AppColors.primary,
+                      child: const Icon(Icons.architecture, size: 56, color: Colors.white),
                     ),
                   ),
                 ),
@@ -138,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
                           width: double.infinity,
                           height: 6,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.5),
+                            color: const Color(0xFFE5E7EB),
                             borderRadius: BorderRadius.circular(3),
                           ),
                           child: Align(
@@ -147,7 +129,7 @@ class _SplashScreenState extends State<SplashScreen>
                               widthFactor: _progressAnimation.value,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
                                   borderRadius: BorderRadius.circular(3),
                                 ),
                               ),
@@ -171,7 +153,7 @@ class _SplashScreenState extends State<SplashScreen>
                 const SizedBox(height: 40),
                 // Footer
                 const Text(
-                  'POWERED BY TOKEN AI',
+                  'POWERED BY AI',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
@@ -182,7 +164,6 @@ class _SplashScreenState extends State<SplashScreen>
               ],
             ),
           ),
-        ),
       ),
     );
   }

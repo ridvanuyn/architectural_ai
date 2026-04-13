@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
@@ -28,21 +29,82 @@ class _ProcessingScreenState extends State<ProcessingScreen>
   Timer? _messageTimer;
   bool _isCreating = false;
   int _messageIndex = 0;
+  late List<String> _messages;
 
-  static const _magicMessages = [
-    'Analyzing your room layout...',
-    'Understanding the architecture...',
-    'Selecting materials & textures...',
-    'Arranging furniture placement...',
-    'Applying lighting effects...',
-    'Adding decorative elements...',
-    'Refining color palette...',
-    'Enhancing photorealism...',
-    'Polishing final details...',
-    'Almost there, magic happening...',
-    'Your dream space is forming...',
-    'Fine-tuning the atmosphere...',
-  ];
+  List<String> _getContextMessages(AppProvider appProvider) {
+    final style = appProvider.selectedStyle?.id ?? '';
+    final worldPrompt = appProvider.selectedWorldPrompt ?? '';
+
+    // Harry Potter themed
+    if (worldPrompt.toLowerCase().contains('harry potter') || worldPrompt.toLowerCase().contains('hogwarts') || worldPrompt.toLowerCase().contains('gryffindor')) {
+      return [
+        'Summoning the Room of Requirement...',
+        'Consulting the Sorting Hat for your style...',
+        'Casting Lumos on every corner...',
+        'Enchanting the furniture with magic...',
+        'Professor McGonagall approves this layout...',
+        'Adding floating candles above...',
+        'The portraits are watching with interest...',
+        'Dobby is arranging the decor...',
+      ];
+    }
+
+    // Matrix themed
+    if (worldPrompt.toLowerCase().contains('matrix') || worldPrompt.toLowerCase().contains('neo') || worldPrompt.toLowerCase().contains('construct')) {
+      return [
+        'Loading the construct...',
+        'Bending the rules of interior design...',
+        'There is no spoon, but there is style...',
+        'Downloading furniture blueprints...',
+        'The Oracle predicted this design...',
+        'Agents are inspecting the layout...',
+        'Choosing between the red and blue pillow...',
+        'Reality is being redesigned...',
+      ];
+    }
+
+    // Post-apocalyptic
+    if (worldPrompt.toLowerCase().contains('apocal') || worldPrompt.toLowerCase().contains('bunker') || worldPrompt.toLowerCase().contains('survival')) {
+      return [
+        'Scanning for the safest layout...',
+        'Reinforcing the shelter walls...',
+        'Salvaging premium materials...',
+        'Installing emergency lighting...',
+        'Fortifying your living space...',
+        'Making the wasteland beautiful...',
+        'Apocalypse-proofing in progress...',
+        'Finding beauty after the end...',
+      ];
+    }
+
+    // Clean/Modern/Minimalist design tips
+    if (style == 'modern' || style == 'minimalist' || style == 'scandinavian') {
+      return [
+        'Less is more — removing visual noise...',
+        'Natural light is the best designer...',
+        'Choosing the perfect neutral palette...',
+        'Clean lines create calm spaces...',
+        'Balancing form and function...',
+        'Every piece earns its place...',
+        'Breathing room makes rooms breathe...',
+        'Simplicity is the ultimate sophistication...',
+      ];
+    }
+
+    // Default architectural tips
+    return [
+      'Analyzing your room layout...',
+      'Understanding the architecture...',
+      'Selecting materials & textures...',
+      'Arranging furniture placement...',
+      'Applying lighting effects...',
+      'Adding decorative elements...',
+      'Refining color palette...',
+      'Enhancing photorealism...',
+      'Polishing final details...',
+      'Your dream space is forming...',
+    ];
+  }
 
   @override
   void initState() {
@@ -64,11 +126,15 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     // Initial haptic
     HapticService.mediumImpact();
 
+    // Initialize messages with context-aware content
+    final appProvider = context.read<AppProvider>();
+    _messages = _getContextMessages(appProvider);
+
     // Rotate messages every 3 seconds
     _messageTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) {
         setState(() {
-          _messageIndex = (_messageIndex + 1) % _magicMessages.length;
+          _messageIndex = (_messageIndex + 1) % _messages.length;
         });
       }
     });
@@ -114,7 +180,14 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     await NotificationService().cancelProcessingNotification();
 
     if (design != null && mounted) {
-      Navigator.pushReplacementNamed(context, BeforeAfterScreen.routeName);
+      // Check if we should show rating dialog
+      final shouldRate = await _shouldShowRating();
+      if (shouldRate && mounted) {
+        await _showRatingDialog();
+      }
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, BeforeAfterScreen.routeName);
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -124,6 +197,40 @@ class _ProcessingScreenState extends State<ProcessingScreen>
       );
       Navigator.pop(context);
     }
+  }
+
+  /// Check if rating dialog should be shown
+  Future<bool> _shouldShowRating() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasRated = prefs.getBool('has_rated_app') ?? false;
+    if (hasRated) return false;
+
+    final designCount = prefs.getInt('total_designs_created') ?? 0;
+    final newCount = designCount + 1;
+    await prefs.setInt('total_designs_created', newCount);
+
+    // Show on 1st design, then every 3rd design
+    return newCount == 1 || newCount % 3 == 0;
+  }
+
+  /// Show rating dialog
+  Future<void> _showRatingDialog() async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _RatingDialog(
+        onRate: (stars) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('has_rated_app', true);
+          await prefs.setInt('app_rating', stars);
+          if (ctx.mounted) Navigator.pop(ctx);
+          HapticService.success();
+        },
+        onLater: () {
+          Navigator.pop(ctx);
+        },
+      ),
+    );
   }
 
   @override
@@ -228,17 +335,23 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                     ],
                   ),
                   const SizedBox(height: 40),
-                  // Rotating magic message
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: Text(
-                      _magicMessages[_messageIndex],
-                      key: ValueKey(_messageIndex),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                  // Rotating magic message — fixed height to prevent layout jumps
+                  SizedBox(
+                    height: 50,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: Text(
+                        _messages[_messageIndex],
+                        key: ValueKey(_messageIndex),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ),
@@ -334,4 +447,108 @@ class _ArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArcPainter oldDelegate) => oldDelegate.progress != progress;
+}
+
+class _RatingDialog extends StatefulWidget {
+  final Future<void> Function(int stars) onRate;
+  final VoidCallback onLater;
+
+  const _RatingDialog({required this.onRate, required this.onLater});
+
+  @override
+  State<_RatingDialog> createState() => _RatingDialogState();
+}
+
+class _RatingDialogState extends State<_RatingDialog> {
+  int _selectedStars = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.auto_awesome, size: 30, color: Colors.white),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Enjoying Architectural AI?',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1D)),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Your design is ready! Rate your experience to help us improve.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            // Stars
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                final starIndex = i + 1;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedStars = starIndex),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(
+                      starIndex <= _selectedStars ? Icons.star_rounded : Icons.star_outline_rounded,
+                      size: 40,
+                      color: starIndex <= _selectedStars ? Colors.amber : const Color(0xFFD1D5DB),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 24),
+            // Rate button
+            GestureDetector(
+              onTap: _selectedStars > 0 ? () => widget.onRate(_selectedStars) : null,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: _selectedStars > 0
+                      ? const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)])
+                      : null,
+                  color: _selectedStars > 0 ? null : const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  'Rate & See Your Design',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: _selectedStars > 0 ? Colors.white : const Color(0xFF9CA3AF),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Later button
+            TextButton(
+              onPressed: widget.onLater,
+              child: const Text(
+                'Maybe Later',
+                style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

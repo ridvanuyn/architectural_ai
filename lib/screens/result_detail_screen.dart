@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
+import '../core/services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
 import 'style_selection_screen.dart';
@@ -25,6 +27,39 @@ class ResultDetailScreen extends StatefulWidget {
 class _ResultDetailScreenState extends State<ResultDetailScreen> {
   bool _isFavorite = false;
   bool _isExporting = false;
+  List<RecommendationItem> _recommendations = [];
+  bool _loadingRecommendations = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecommendations();
+  }
+
+  Future<void> _loadRecommendations() async {
+    final appProvider = context.read<AppProvider>();
+    final currentDesign = appProvider.currentDesign;
+    if (currentDesign == null) {
+      setState(() => _loadingRecommendations = false);
+      return;
+    }
+
+    try {
+      final recs = await RecommendationService().getRecommendations(
+        currentStyleId: currentDesign.styleId,
+        currentStyleName: currentDesign.styleName,
+        userDesigns: appProvider.designs,
+      );
+      if (mounted) {
+        setState(() {
+          _recommendations = recs;
+          _loadingRecommendations = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadingRecommendations = false);
+    }
+  }
 
   Widget _buildSmartImage(String? url) {
     if (url == null || url.isEmpty) {
@@ -353,6 +388,173 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           label: Text(_isExporting ? 'Saving...' : 'Export High-Res'),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      // Recreate button
+                      SizedBox(
+                        width: double.infinity,
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticService.mediumImpact();
+                            Navigator.pushNamed(context, '/styles');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF5D21DF).withValues(alpha: 0.25),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text('Create Better Version', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                                SizedBox(width: 10),
+                                Text('50% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.yellowAccent)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Recommended Styles
+                      if (!_loadingRecommendations && _recommendations.isNotEmpty) ...[
+                        const SizedBox(height: 32),
+                        Row(
+                          children: [
+                            Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Recommended Styles',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Based on your recent designs',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 0.95, // 20% shorter than store's 0.75
+                          ),
+                          itemCount: _recommendations.length,
+                          itemBuilder: (context, index) {
+                            final item = _recommendations[index];
+                            return GestureDetector(
+                              onTap: () {
+                                HapticService.lightImpact();
+                                Navigator.pushNamed(context, StyleSelectionScreen.routeName);
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(13),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.06),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(13),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      CachedNetworkImage(
+                                        imageUrl: item.imageUrl,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => Container(color: AppColors.cardBackground),
+                                        errorWidget: (_, __, ___) => Container(
+                                          color: AppColors.cardBackground,
+                                          child: const Icon(Icons.image, color: Colors.grey),
+                                        ),
+                                      ),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withValues(alpha: 0.7),
+                                            ],
+                                            stops: const [0.4, 1.0],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 10,
+                                        right: 10,
+                                        bottom: 10,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.name,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (item.description.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                item.description,
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.white.withValues(alpha: 0.8),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                      ] else if (_loadingRecommendations) ...[
+                        const SizedBox(height: 32),
+                        const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ],
                   ),
                 ),

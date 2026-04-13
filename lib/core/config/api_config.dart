@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base URL - change for production
-  static const String baseUrl = 'http://localhost:3005/api';
+  static const String baseUrl = 'http://localhost:4000/api';
   
   // Auth endpoints
   static const String authRegister = '/auth/register';

@@ -6,61 +6,110 @@ import 'package:provider/provider.dart';
 import '../core/models/specialty_world.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
+import '../core/services/world_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
 import 'style_selection_screen.dart';
 
-class InspirationScreen extends StatelessWidget {
+class InspirationScreen extends StatefulWidget {
   const InspirationScreen({super.key});
   static const routeName = '/inspiration';
 
-  static final Map<String, List<SpecialtyWorld>> _collections = {
-    'Harry Potter': [
-      SpecialtyWorld(id: 'gryffindor-room', name: 'Gryffindor Common Room', description: 'Bravery & Gold', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400', prompt: 'Transform into a Gryffindor common room from Hogwarts with warm red and gold colors, fireplace, and magical portraits'),
-      SpecialtyWorld(id: 'slytherin-dungeon', name: 'Slytherin Dungeon', description: 'Ambition & Green', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=400', prompt: 'Transform into a Slytherin dungeon common room with green lighting and stone walls'),
-      SpecialtyWorld(id: 'hogwarts-library', name: 'Hogwarts Library', description: 'Ancient Knowledge', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=400', prompt: 'Transform into the Hogwarts library with floating candles and ancient books'),
-      SpecialtyWorld(id: 'room-of-requirement', name: 'Room of Requirement', description: 'Whatever You Need', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400', prompt: 'Transform into the Room of Requirement from Harry Potter'),
-    ],
-    'Star Wars': [
-      SpecialtyWorld(id: 'millennium-falcon', name: 'Millennium Falcon', description: 'Smuggler Ship', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=400', prompt: 'Transform into the Millennium Falcon cockpit and lounge from Star Wars'),
-      SpecialtyWorld(id: 'jedi-temple', name: 'Jedi Temple', description: 'Force Meditation', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1507692049790-de58290a4334?w=400', prompt: 'Transform into a Jedi Temple meditation chamber'),
-      SpecialtyWorld(id: 'tatooine-home', name: 'Tatooine Homestead', description: 'Desert Dwelling', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=400', prompt: 'Transform into a Tatooine moisture farm homestead from Star Wars'),
-      SpecialtyWorld(id: 'death-star', name: 'Death Star Interior', description: 'Imperial Station', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1534996858221-380b92700493?w=400', prompt: 'Transform into the Death Star interior command room'),
-    ],
-    'The Matrix': [
-      SpecialtyWorld(id: 'matrix-construct', name: 'The Construct', description: 'White Loading Room', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400', prompt: 'Transform into The Matrix construct white loading program'),
-      SpecialtyWorld(id: 'neb-ship', name: 'Nebuchadnezzar', description: 'Hovercraft Interior', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400', prompt: 'Transform into the Nebuchadnezzar hovercraft from The Matrix'),
-      SpecialtyWorld(id: 'matrix-club', name: 'Club Hel', description: 'Merovingian Club', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=400', prompt: 'Transform into Club Hel from The Matrix with neon and leather'),
-    ],
-    'Game of Thrones': [
-      SpecialtyWorld(id: 'winterfell', name: 'Winterfell Great Hall', description: 'House Stark', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400', prompt: 'Transform into the Great Hall of Winterfell from Game of Thrones'),
-      SpecialtyWorld(id: 'iron-throne', name: 'Iron Throne Room', description: 'Kings Landing', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1551524559-8af4e6624178?w=400', prompt: 'Transform into the Iron Throne room'),
-      SpecialtyWorld(id: 'dragonstone', name: 'Dragonstone Castle', description: 'Targaryen Seat', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1533154683836-84ea7a0bc310?w=400', prompt: 'Transform into Dragonstone castle throne room'),
-    ],
-    'Stranger Things': [
-      SpecialtyWorld(id: 'upside-down', name: 'The Upside Down', description: 'Dark Dimension', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1509248961895-b23aad4f24b4?w=400', prompt: 'Transform into The Upside Down from Stranger Things'),
-      SpecialtyWorld(id: 'hawkins-80s', name: "Hawkins '80s Basement", description: 'Retro Gaming Den', category: 'retro', imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400', prompt: 'Transform into 1980s Hawkins basement from Stranger Things with arcade games'),
-      SpecialtyWorld(id: 'starcourt-mall', name: 'Starcourt Mall', description: '80s Shopping Center', category: 'retro', imageUrl: 'https://images.unsplash.com/photo-1519567241046-7f570f88e07a?w=400', prompt: 'Transform into Starcourt Mall from Stranger Things with 80s neon'),
-    ],
-    'Cyberpunk': [
-      SpecialtyWorld(id: 'cyberpunk-2077', name: 'Night City Apartment', description: 'Neon Future', category: 'futuristic', imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400', prompt: 'Transform into Cyberpunk 2077 Night City apartment with neon lights'),
-      SpecialtyWorld(id: 'cyber-tokyo', name: 'Cyber-Tokyo', description: 'Neon Metropolis', category: 'futuristic', imageUrl: 'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=400', prompt: 'Transform into futuristic Tokyo apartment with holographic displays'),
-      SpecialtyWorld(id: 'blade-runner', name: 'Blade Runner 2049', description: 'Neo-Noir', category: 'futuristic', imageUrl: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=400', prompt: 'Transform into a Blade Runner 2049 apartment'),
-    ],
-    'Fantasy Worlds': [
-      SpecialtyWorld(id: 'hobbit-hole', name: 'Hobbit Hole', description: 'Middle Earth', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400', prompt: 'Transform into a cozy Hobbit hole from Middle Earth'),
-      SpecialtyWorld(id: 'narnia', name: 'Narnia Beyond Wardrobe', description: 'Magical Kingdom', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1418985991508-e47386d96a71?w=400', prompt: 'Transform into Narnia beyond the wardrobe'),
-      SpecialtyWorld(id: 'enchanted-forest', name: 'Enchanted Forest', description: 'Magical Nature', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=400', prompt: 'Transform into an enchanted forest cabin'),
-      SpecialtyWorld(id: 'underwater-atlantis', name: 'Underwater Atlantis', description: 'Deep Sea Kingdom', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400', prompt: 'Transform into underwater Atlantean palace'),
-    ],
-    'Historical': [
-      SpecialtyWorld(id: 'victorian-1800s', name: '1800s Victorian', description: 'Gothic Elegance', category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400', prompt: 'Transform into Victorian era parlor from the 1800s'),
-      SpecialtyWorld(id: 'egyptian-palace', name: 'Egyptian Palace', description: "Pharaoh's Court", category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1539650116574-8efeb43e2750?w=400', prompt: 'Transform into Ancient Egyptian palace'),
-      SpecialtyWorld(id: 'gatsby-mansion', name: 'Gatsby Mansion', description: 'Roaring 1920s', category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=400', prompt: 'Transform into The Great Gatsby mansion'),
-      SpecialtyWorld(id: 'roman-villa', name: 'Roman Villa', description: 'Ancient Empire', category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400', prompt: 'Transform into an Ancient Roman villa'),
-      SpecialtyWorld(id: 'ottoman-palace', name: 'Ottoman Palace', description: 'Topkapi Elegance', category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?w=400', prompt: 'Transform into an Ottoman palace chamber'),
-    ],
+  /// The display categories shown in "All Collections" view.
+  /// Each maps to keyword patterns used to filter worlds from the API.
+  static const List<String> collectionNames = [
+    'Harry Potter',
+    'Star Wars',
+    'The Matrix',
+    'Game of Thrones',
+    'Stranger Things',
+    'Cyberpunk',
+    'Fantasy Worlds',
+    'Anime Worlds',
+    'Gaming Realms',
+    'Luxury Living',
+    'Time Travel',
+    'Historical',
+  ];
+
+  @override
+  State<InspirationScreen> createState() => _InspirationScreenState();
+}
+
+class _InspirationScreenState extends State<InspirationScreen> {
+  List<SpecialtyWorld> _worlds = [];
+  bool _loading = true;
+
+  /// Maps display collection names to world-id keyword patterns.
+  /// Worlds whose id contains any of these keywords belong to that collection.
+  static const Map<String, List<String>> _categoryKeywords = {
+    'Harry Potter': ['gryffindor', 'hogwarts', 'slytherin', 'dumbledore', 'potions', 'requirement'],
+    'Star Wars': ['millennium', 'jedi', 'tatooine', 'death-star', 'naboo', 'mos-eisley'],
+    'The Matrix': ['matrix', 'construct', 'neb', 'neo-apartment', 'zion', 'club-hel'],
+    'Game of Thrones': ['winterfell', 'iron-throne', 'dragonstone', 'castle-black', 'highgarden'],
+    'Anime Worlds': ['spirited', 'totoro', 'evangelion', 'howl', 'attack-on-titan', 'attack-titan', 'death-note', 'demon-slayer', 'one-piece', 'cowboy-bebop', 'dragon-ball', 'sailor-moon', 'ponyo', 'princess-mononoke', 'naruto', 'hokage'],
+    'Gaming Realms': ['minecraft', 'zelda', 'resident-evil', 'elden-ring', 'god-of-war', 'bioshock', 'portal', 'skyrim', 'halo', 'mass-effect', 'assassin', 'animal-crossing', 'hollow-knight', 'pokemon'],
+    'Luxury Living': ['dubai', 'monaco', 'santorini', 'bali', 'swiss', 'safari', 'nyc', 'soho', 'moroccan', 'penthouse', 'yacht', 'malibu', 'chalet'],
+    'Time Travel': ['steampunk', 'retro-50', 'medieval', 'ancient-rome', 'future-2200', 'gatsby', 'roman', 'aztec'],
+    'Stranger Things': ['upside-down', 'hawkins', 'starcourt', 'hopper'],
+    'Cyberpunk': ['cyberpunk', 'cyber-tokyo', 'blade-runner', 'akira', 'ghost-in-the-shell', 'tron'],
+    'Fantasy Worlds': ['hobbit', 'narnia', 'enchanted', 'atlantis', 'rivendell', 'asgard', 'ice-palace', 'crystal-cave', 'cloud-city', 'mushroom', 'fairy', 'dragon', 'mermaid', 'phoenix', 'underwater'],
+    'Historical': ['victorian', 'egyptian', 'gatsby', 'roman', 'ottoman', 'aztec', 'chinese-imperial', 'samurai', 'art-nouveau', 'alhambra', 'byzantine', 'tudor', 'baroque', 'colonial', 'petra', 'versailles', 'greek-temple', 'ancient-greek', 'renaissance'],
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorlds();
+  }
+
+  Future<void> _loadWorlds() async {
+    try {
+      final worlds = await WorldService().getWorlds();
+      if (mounted) {
+        setState(() {
+          _worlds = worlds;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      // Use small fallback for offline mode
+      if (mounted) {
+        setState(() {
+          _worlds = _getFallbackWorlds();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  List<SpecialtyWorld> _getFilteredWorlds(String category) {
+    if (category == 'all') return _worlds;
+
+    final keywords = _categoryKeywords[category] ?? [];
+    if (keywords.isEmpty) {
+      // Try matching by DB category field
+      return _worlds.where((w) => w.category.toLowerCase() == category.toLowerCase()).toList();
+    }
+
+    return _worlds.where((w) => keywords.any((kw) => w.id.contains(kw))).toList();
+  }
+
+  static List<SpecialtyWorld> _getFallbackWorlds() {
+    // Minimal offline fallback -- real data comes from the API
+    return [
+      SpecialtyWorld(id: 'hobbit-hole', name: 'Hobbit Hole', description: 'Middle Earth Style', category: 'fantasy', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/hobbit-hole.jpg', prompt: 'Transform into a cozy Hobbit hole'),
+      SpecialtyWorld(id: 'gryffindor-room', name: 'Gryffindor Room', description: 'Bravery & Gold', category: 'fantasy', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/gryffindor-room.jpg', prompt: 'Transform into Gryffindor common room'),
+      SpecialtyWorld(id: 'cyberpunk-2077', name: 'Cyberpunk 2077', description: 'Neon Night City', category: 'futuristic', imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400', prompt: 'Transform into Cyberpunk apartment'),
+      SpecialtyWorld(id: 'victorian-1800s', name: '1800s Victorian', description: 'Gothic Elegance', category: 'historical', imageUrl: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400', prompt: 'Transform into Victorian parlor'),
+      SpecialtyWorld(id: 'japanese-zen', name: 'Japanese Zen', description: 'Temple Peace', category: 'cultural', imageUrl: 'https://images.unsplash.com/photo-1545083036-b175dd155a1d?w=400', prompt: 'Transform into Zen temple'),
+      SpecialtyWorld(id: 'mars-colony', name: 'Mars Colony', description: 'Red Planet Base', category: 'futuristic', imageUrl: 'https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=400', prompt: 'Transform into Mars habitat'),
+      SpecialtyWorld(id: 'winterfell-great-hall', name: 'Winterfell Great Hall', description: 'House Stark', category: 'fantasy', imageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400', prompt: 'Transform into Winterfell Great Hall'),
+      SpecialtyWorld(id: 'millennium-falcon', name: 'Millennium Falcon', description: 'Smuggler Ship', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=400', prompt: 'Transform into the Millennium Falcon'),
+      SpecialtyWorld(id: 'spirited-away-bathhouse', name: 'Spirited Away Bathhouse', description: 'Enchanted Spa', category: 'anime', imageUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400', prompt: 'Transform into the Spirited Away bathhouse'),
+      SpecialtyWorld(id: 'matrix-construct', name: 'The Construct', description: 'White Loading Room', category: 'sci-fi', imageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400', prompt: 'Transform into The Matrix Construct'),
+    ];
+  }
 
   void _onWorldTap(BuildContext context, SpecialtyWorld world) {
     HapticService.mediumImpact();
@@ -140,7 +189,7 @@ class InspirationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final category = args?['category'] ?? 'Fantasy Worlds';
-    final items = _collections[category] ?? _collections['Fantasy Worlds']!;
+    final isAll = category == 'all';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -150,78 +199,191 @@ class InspirationScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios, size: 20),
         ),
-        title: Text(category, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        title: Text(isAll ? 'All Collections' : category, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: Text(
-                'Explore $category themed rooms. Tap to transform your space.',
-                style: TextStyle(fontSize: 14, color: AppColors.textMuted),
-              ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: isAll
+                  ? _buildAllCollections(context)
+                  : _buildCategoryGrid(context, category),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.78,
-                  ),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final world = items[index];
-                    return GestureDetector(
-                      onTap: () => _onWorldTap(context, world),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              SkeletonImage(imageUrl: world.imageUrl, fit: BoxFit.cover),
-                              Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                                    stops: const [0.4, 1.0],
-                                  ),
-                                ),
+    );
+  }
+
+  Widget _buildCategoryGrid(BuildContext context, String category) {
+    final items = _getFilteredWorlds(category);
+
+    if (items.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.explore_off, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text('No worlds found for this collection', style: TextStyle(color: AppColors.textMuted)),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Text(
+            'Explore $category themed rooms. Tap to transform your space.',
+            style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.78,
+              ),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final world = items[index];
+                return GestureDetector(
+                  onTap: () => _onWorldTap(context, world),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          SkeletonImage(imageUrl: world.imageUrl, fit: BoxFit.cover),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                                stops: const [0.4, 1.0],
                               ),
-                              Positioned(
-                                left: 10, right: 10, bottom: 10,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(world.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-                                    const SizedBox(height: 2),
-                                    Text(world.description, style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
+                          if (world.isNew)
+                            Positioned(
+                              top: 8,
+                              left: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text('NEW', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                              ),
+                            ),
+                          Positioned(
+                            left: 10, right: 10, bottom: 10,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(world.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                                const SizedBox(height: 2),
+                                Text(world.description.isNotEmpty ? world.description : world.category, style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAllCollections(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: InspirationScreen.collectionNames.length,
+      itemBuilder: (context, index) {
+        final categoryName = InspirationScreen.collectionNames[index];
+        final worlds = _getFilteredWorlds(categoryName);
+        final previewImage = worlds.isNotEmpty ? worlds.first.imageUrl : '';
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                InspirationScreen.routeName,
+                arguments: {'category': categoryName},
+              );
+            },
+            child: Container(
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (previewImage.isNotEmpty)
+                      SkeletonImage(imageUrl: previewImage, fit: BoxFit.cover),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Colors.black.withValues(alpha: 0.7), Colors.black.withValues(alpha: 0.3)],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            categoryName,
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${worlds.length} worlds',
+                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Positioned(
+                      right: 16,
+                      top: 0,
+                      bottom: 0,
+                      child: Center(
+                        child: Icon(Icons.chevron_right, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

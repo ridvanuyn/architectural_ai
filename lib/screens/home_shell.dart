@@ -35,7 +35,7 @@ class _HomeShellState extends State<HomeShell> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: _currentIndex == 2 ? null : Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),

@@ -8,11 +8,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/rating_dialog.dart';
 import 'home_shell.dart';
 import 'result_detail_screen.dart';
-import 'style_selection_screen.dart';
 
 class BeforeAfterScreen extends StatefulWidget {
   const BeforeAfterScreen({super.key});
@@ -122,81 +119,6 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
     }
   }
 
-  List<Widget> _buildUpgradeOffers(AppProvider appProvider) {
-    final currentTier = appProvider.tier;
-    // x5 is highest — no upgrades to show
-    if (currentTier == 'best') return [];
-
-    final offers = <Widget>[];
-
-    // Tier upgrade configs — half price of the target tier
-    final upgrades = [
-      if (currentTier == 'free') ...[
-        {'tier': 'pro', 'label': 'Recreate with PRO+', 'cost': 1, 'originalCost': 2, 'colors': [const Color(0xFF6C63FF), const Color(0xFF3B82F6)]},
-        {'tier': 'best', 'label': 'Recreate with BEST', 'cost': 2, 'originalCost': 3, 'colors': [const Color(0xFFEF4444), const Color(0xFFDC2626)]},
-      ],
-      if (currentTier == 'pro') ...[
-        {'tier': 'best', 'label': 'Recreate with BEST', 'cost': 2, 'originalCost': 3, 'colors': [const Color(0xFFEF4444), const Color(0xFFDC2626)]},
-      ],
-    ];
-
-    for (final upgrade in upgrades) {
-      final tier = upgrade['tier'] as String;
-      final label = upgrade['label'] as String;
-      final cost = upgrade['cost'] as int;
-      final originalCost = upgrade['originalCost'] as int;
-      final colors = upgrade['colors'] as List<Color>;
-
-      offers.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GestureDetector(
-            onTap: () {
-              HapticService.mediumImpact();
-              appProvider.setTier(tier);
-              Navigator.pushReplacementNamed(context, '/processing');
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: colors),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Flexible(child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white), overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('$cost', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.greenAccent.shade200)),
-                        Text(' / $originalCost', style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.5), decoration: TextDecoration.lineThrough)),
-                        const SizedBox(width: 4),
-                        const Text('50%', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.yellowAccent)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return offers;
-  }
-
-  void _retryWithNewStyle() {
-    HapticService.mediumImpact();
-    Navigator.pushNamed(context, StyleSelectionScreen.routeName);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +126,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
       builder: (context, appProvider, child) {
         final currentDesign = appProvider.currentDesign;
         final styleName = currentDesign?.styleName ?? 'Redesigned';
-        
+
         // Get actual image sources from design
         // originalImageUrl may be a local file path or a network URL
         final beforeImageUrl = currentDesign?.originalImageUrl ?? '';
@@ -213,10 +135,14 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
         // Also check if user has a selected image file (local flow)
         final selectedFile = appProvider.selectedImage;
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
+        return PopScope(
+          canPop: false,
+          child: Scaffold(
+          backgroundColor: const Color(0xFFF9F9FB),
           appBar: AppBar(
-            backgroundColor: AppColors.background,
+            backgroundColor: const Color(0xFFF9F9FB),
+            elevation: 0,
+            automaticallyImplyLeading: false,
             leading: IconButton(
               onPressed: () {
                 HapticService.lightImpact();
@@ -227,156 +153,264 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                   (route) => false,
                 );
               },
-              icon: const Icon(Icons.close, size: 24),
+              icon: const Icon(Icons.close, size: 22, color: Color(0xFF1A1C1D)),
             ),
             title: const Text(
-              'AI Redesign',
+              'Architectural AI',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1C1D),
               ),
             ),
             centerTitle: true,
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.tagBackground,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  styleName.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
           ),
           body: SafeArea(
             child: Column(
               children: [
-                // Before/After image comparison — full width
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      final height = constraints.maxHeight;
-                      return GestureDetector(
-                        onHorizontalDragUpdate: (details) {
-                          _onSliderDrag(details.delta.dx, width);
-                        },
-                        child: Stack(
-                          children: [
-                            // After image
-                            Positioned.fill(
-                              child: _buildImage(afterImageUrl, null, Colors.grey.shade200),
-                            ),
-                            // Before image (clipped)
-                            Positioned(
-                              left: 0, top: 0, bottom: 0,
-                              width: width * _sliderValue,
-                              child: ClipRect(
-                                child: OverflowBox(
-                                  alignment: Alignment.centerLeft,
-                                  maxWidth: width,
-                                  child: SizedBox(
-                                    width: width,
-                                    height: height,
-                                    child: _buildImage(beforeImageUrl, selectedFile, Colors.brown.shade200),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // BEFORE label
-                            Positioned(
-                              left: 12, top: 12,
-                              child: Container(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Badges row
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
+                                  color: const Color(0xFF5D21DF),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text('BEFORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                                child: const Text(
+                                  'AI POWERED',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
+                                ),
                               ),
-                            ),
-                            // AFTER label
-                            Positioned(
-                              right: 12, top: 12,
-                              child: Container(
+                              const SizedBox(width: 8),
+                              Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.8),
                                   borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF5D21DF)),
                                 ),
-                                child: const Text('AFTER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
-                              ),
-                            ),
-                            // Divider line
-                            Positioned(
-                              left: width * _sliderValue - 1.5, top: 0, bottom: 0,
-                              child: Container(width: 3, color: Colors.white),
-                            ),
-                            // Slider handle
-                            Positioned(
-                              left: width * _sliderValue - 24, top: 0, bottom: 0,
-                              child: Center(
-                                child: Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
-                                  ),
-                                  child: const Icon(Icons.swap_horiz, color: Colors.white, size: 24),
+                                child: Text(
+                                  styleName.toUpperCase(),
+                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF5D21DF), letterSpacing: 0.5),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 12),
+                        // Title
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            styleName,
+                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF1A1C1D)),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        // Subtitle
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            'Your space transformed with $styleName aesthetic — a beautiful blend of style and functionality.',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Before/After comparison (full width, keep existing slider logic)
+                        SizedBox(
+                          height: 300,
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final width = constraints.maxWidth;
+                              final height = constraints.maxHeight;
+                              return GestureDetector(
+                                onHorizontalDragUpdate: (details) {
+                                  _onSliderDrag(details.delta.dx, width);
+                                },
+                                child: Stack(
+                                  children: [
+                                    // After image
+                                    Positioned.fill(
+                                      child: _buildImage(afterImageUrl, null, Colors.grey.shade200),
+                                    ),
+                                    // Before image (clipped)
+                                    Positioned(
+                                      left: 0, top: 0, bottom: 0,
+                                      width: width * _sliderValue,
+                                      child: ClipRect(
+                                        child: OverflowBox(
+                                          alignment: Alignment.centerLeft,
+                                          maxWidth: width,
+                                          child: SizedBox(
+                                            width: width,
+                                            height: height,
+                                            child: _buildImage(beforeImageUrl, selectedFile, Colors.brown.shade200),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // BEFORE label
+                                    Positioned(
+                                      left: 12, top: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.5),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text('BEFORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                                      ),
+                                    ),
+                                    // AFTER label
+                                    Positioned(
+                                      right: 12, top: 12,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF5D21DF).withValues(alpha: 0.8),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text('AFTER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                                      ),
+                                    ),
+                                    // Divider line
+                                    Positioned(
+                                      left: width * _sliderValue - 1.5, top: 0, bottom: 0,
+                                      child: Container(width: 3, color: Colors.white),
+                                    ),
+                                    // Slider handle
+                                    Positioned(
+                                      left: width * _sliderValue - 20, top: 0, bottom: 0,
+                                      child: Center(
+                                        child: Container(
+                                          width: 40, height: 40,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF5D21DF),
+                                            shape: BoxShape.circle,
+                                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))],
+                                          ),
+                                          child: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Save & Share row
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _toggleSave,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          _isSaved ? Icons.bookmark : Icons.bookmark_outline,
+                                          size: 18,
+                                          color: _isSaved ? const Color(0xFF5D21DF) : const Color(0xFF1A1C1D),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _isSaved ? 'Saved' : 'Save',
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1D)),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: _shareDesign,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.share_outlined, size: 18, color: Color(0xFF1A1C1D)),
+                                        SizedBox(width: 6),
+                                        Text('Share', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1D))),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   ),
                 ),
-                // Bottom controls
+                // Bottom action buttons (fixed at bottom)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: Column(
                     children: [
-                      // Upgrade offers — show higher tiers at half price
-                      ..._buildUpgradeOffers(appProvider),
-                      // Retry
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _retryWithNewStyle,
-                          child: const Text('Retry with New Style'),
+                      // Create Better Version with 50% OFF
+                      GestureDetector(
+                        onTap: () {
+                          HapticService.mediumImpact();
+                          Navigator.pushNamed(context, '/styles');
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF5D21DF).withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text('Create Better Version', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.yellowAccent,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text('50% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF4400B6))),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Save & Share
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _toggleSave,
-                              icon: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_outline, size: 18, color: _isSaved ? AppColors.primary : AppColors.textPrimary),
-                              label: Text(_isSaved ? 'Saved' : 'Save'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _shareDesign,
-                              icon: Icon(Icons.share_outlined, size: 18, color: AppColors.textPrimary),
-                              label: const Text('Share'),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -384,6 +418,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
               ],
             ),
           ),
+        ),
         );
       },
     );

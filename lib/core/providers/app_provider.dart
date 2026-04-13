@@ -15,6 +15,7 @@ import '../services/design_service.dart';
 import '../services/style_service.dart';
 import '../services/token_service.dart';
 import '../services/haptic_service.dart';
+import '../services/engagement_notification_service.dart';
 import '../services/notification_service.dart';
 import '../services/revenue_cat_service.dart';
 
@@ -101,6 +102,17 @@ class AppProvider extends ChangeNotifier {
       await RevenueCatService().init();
     } catch (e) {
       debugPrint('RevenueCat init failed: $e');
+    }
+
+    // Check engagement notifications
+    try {
+      await EngagementNotificationService().checkAndNotify(
+        languageCode: _locale.languageCode,
+        isSubscriber: _isPremium,
+        tokenBalance: _tokenBalance,
+      );
+    } catch (e) {
+      debugPrint('Engagement notification check failed: $e');
     }
 
     // Load styles

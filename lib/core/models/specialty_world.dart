@@ -8,6 +8,9 @@ class SpecialtyWorld {
   final double price;
   final bool isProOnly;
   final bool isFeatured;
+  final DateTime? createdAt;
+
+  bool get isNew => createdAt != null && DateTime.now().difference(createdAt!).inDays < 7;
 
   SpecialtyWorld({
     required this.id,
@@ -19,6 +22,7 @@ class SpecialtyWorld {
     this.price = 0,
     this.isProOnly = false,
     this.isFeatured = false,
+    this.createdAt,
   });
 
   factory SpecialtyWorld.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,7 @@ class SpecialtyWorld {
       price: (json['price'] as num?)?.toDouble() ?? 0.99,
       isProOnly: json['isProOnly'] ?? true,
       isFeatured: json['isFeatured'] ?? false,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 
@@ -46,6 +51,7 @@ class SpecialtyWorld {
       'price': price,
       'isProOnly': isProOnly,
       'isFeatured': isFeatured,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }

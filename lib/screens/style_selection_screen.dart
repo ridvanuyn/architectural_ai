@@ -8,10 +8,19 @@ import '../core/models/specialty_world.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
 import '../core/services/world_service.dart';
-import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
 import 'processing_screen.dart';
 import 'store_screen.dart';
+
+// Design system constants
+const _kSurfaceBg = Color(0xFFF9F9FB);
+const _kCardBg = Color(0xFFFFFFFF);
+const _kTextPrimary = Color(0xFF1A1C1D);
+const _kTextSecondary = Color(0xFF6B7280);
+const _kTextMuted = Color(0xFF9CA3AF);
+const _kGradientStart = Color(0xFF4400B6);
+const _kGradientEnd = Color(0xFF5D21DF);
+const _kGradient = LinearGradient(colors: [_kGradientStart, _kGradientEnd]);
 
 class StyleSelectionScreen extends StatefulWidget {
   const StyleSelectionScreen({super.key});
@@ -30,11 +39,18 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
   bool _customMode = false;
   int _currentStep = 0;
   String _selectedTier = 'pro';
-  int _styleTab = 0; // 0 = All, 1 = Premium, 2 = Worlds
+  int _styleTab = 0; // 0 = Styles, 1 = Premium, 2 = Store
   List<SpecialtyWorld> _worlds = [];
   SpecialtyWorld? _selectedWorld;
 
   static const int _totalSteps = 4;
+
+  static const _quickSuggestions = [
+    'Golden Hour',
+    'Sustainable Tech',
+    'Artistic Flair',
+    'Biophilic Design',
+  ];
 
   @override
   void initState() {
@@ -43,24 +59,31 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     _selectedTier = appProvider.tier;
     _loadWorlds();
 
-    // If coming from store with a world prompt already set, skip style selection
+    // If photo already selected (coming from home), skip to step 1 (Choose Aesthetic)
+    if (appProvider.selectedImage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _goToStep(1);
+      });
+    }
+    // If coming from store with a world prompt already set, skip to step 2
     if (appProvider.selectedWorldPrompt != null && appProvider.selectedWorldPrompt!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _goToStep(1); // Jump to Custom Instructions step
+        _goToStep(appProvider.selectedImage != null ? 2 : 1);
       });
     }
   }
 
   Future<void> _loadWorlds() async {
-    // First load defaults (same as store), then try API
+    // Show defaults while loading
     setState(() => _worlds = StoreScreen.getDefaultWorlds());
     try {
       final worlds = await WorldService().getWorlds();
       if (mounted && worlds.isNotEmpty) {
+        // FULLY replace defaults with API data (includes S3 image URLs)
         setState(() => _worlds = worlds);
       }
     } catch (_) {
-      // Keep defaults
+      // Keep defaults on error
     }
   }
 
@@ -111,7 +134,7 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: _kCardBg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -121,7 +144,7 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.cardBorder,
+                color: _kTextMuted.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -131,15 +154,15 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: _kTextPrimary,
               ),
             ),
             const SizedBox(height: 8),
-            Text(
+            const Text(
               'Take a new photo or choose from gallery',
               style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textMuted,
+                color: _kTextMuted,
               ),
             ),
             const SizedBox(height: 24),
@@ -246,21 +269,24 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     return Consumer<AppProvider>(
       builder: (context, appProvider, child) {
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: _kSurfaceBg,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
+            backgroundColor: _kSurfaceBg,
+            elevation: 0,
             leading: IconButton(
               onPressed: () {
                 HapticService.lightImpact();
                 _prevStep();
               },
-              icon: const Icon(Icons.arrow_back_ios, size: 20),
+              icon: const Icon(Icons.arrow_back_ios, size: 20, color: _kTextPrimary),
             ),
             title: Text(
-              'Step ${_currentStep + 1} of $_totalSteps',
+              'STEP ${_currentStep + 1} OF $_totalSteps',
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _kTextSecondary,
+                letterSpacing: 1.2,
               ),
             ),
             centerTitle: true,
@@ -269,20 +295,20 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                 margin: const EdgeInsets.only(right: 16),
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.tagBackground,
+                  color: _kGradientEnd.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.token, size: 14, color: AppColors.primary),
+                    const Icon(Icons.token, size: 14, color: _kGradientEnd),
                     const SizedBox(width: 4),
                     Text(
                       '${appProvider.tokenBalance}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                        color: _kGradientEnd,
                       ),
                     ),
                   ],
@@ -293,9 +319,9 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
           body: SafeArea(
             child: Column(
               children: [
-                // Step indicator dots
-                _buildStepIndicator(),
-                const SizedBox(height: 8),
+                // Segmented progress bar
+                _buildSegmentedProgressBar(),
+                const SizedBox(height: 4),
                 // Page content
                 Expanded(
                   child: PageView(
@@ -305,10 +331,10 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                       setState(() => _currentStep = index);
                     },
                     children: [
+                      _buildStep0CapturePhoto(appProvider),
                       _buildStep1ChooseStyle(appProvider),
-                      _buildStep2CustomInstructions(appProvider),
-                      _buildStep3ChooseQuality(appProvider),
-                      _buildStep4Confirm(appProvider),
+                      _buildStep2RefineVision(appProvider),
+                      _buildStep3ReviewSelection(appProvider),
                     ],
                   ),
                 ),
@@ -320,24 +346,22 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  Widget _buildStepIndicator() {
+  // ─── Segmented Progress Bar ───────────────────────────────────────
+
+  Widget _buildSegmentedProgressBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_totalSteps, (index) {
           final isActive = index == _currentStep;
           final isCompleted = index < _currentStep;
           return Expanded(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
               height: 4,
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary
-                    : isCompleted
-                        ? AppColors.primary.withValues(alpha: 0.4)
-                        : AppColors.cardBorder,
+                gradient: (isActive || isCompleted) ? _kGradient : null,
+                color: (!isActive && !isCompleted) ? _kTextMuted.withValues(alpha: 0.2) : null,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -347,48 +371,302 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  // ─── STEP 1: Choose Style ──────────────────────────────────────────
+  // ─── Gradient Button ──────────────────────────────────────────────
+
+  Widget _buildGradientButton({
+    required String label,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      child: GestureDetector(
+        onTap: enabled
+            ? () {
+                HapticService.lightImpact();
+                onPressed();
+              }
+            : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: enabled ? _kGradient : null,
+            color: enabled ? null : _kTextMuted.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: _kGradientStart.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: enabled ? Colors.white : _kTextMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── STEP 0: Capture Your Space ───────────────────────────────────
+
+  Widget _buildStep0CapturePhoto(AppProvider appProvider) {
+    final selectedImage = appProvider.selectedImage;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Capture Your Space',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: _kTextPrimary),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Every great redesign begins with a clear vision. Show us your room.',
+                  style: TextStyle(fontSize: 14, color: _kTextSecondary),
+                ),
+                const SizedBox(height: 24),
+                // Photo preview if selected
+                if (selectedImage != null) ...[
+                  GestureDetector(
+                    onTap: _showImageSourceDialog,
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(selectedImage, fit: BoxFit.cover),
+                            Positioned(
+                              bottom: 12, right: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.swap_horiz, size: 14),
+                                    SizedBox(width: 4),
+                                    Text('Change', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                // Camera option
+                GestureDetector(
+                  onTap: () async {
+                    final file = await _picker.pickImage(source: ImageSource.camera, maxWidth: 1920, maxHeight: 1920, imageQuality: 85);
+                    if (file != null && mounted) {
+                      context.read<AppProvider>().setSelectedImage(File(file.path));
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _kCardBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: const BoxDecoration(
+                            gradient: _kGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Live Camera', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _kTextPrimary)),
+                              SizedBox(height: 2),
+                              Text('AI-assisted viewfinder for perfect results', style: TextStyle(fontSize: 12, color: _kTextSecondary)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: _kTextMuted, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Gallery option
+                GestureDetector(
+                  onTap: () async {
+                    final file = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1920, maxHeight: 1920, imageQuality: 85);
+                    if (file != null && mounted) {
+                      context.read<AppProvider>().setSelectedImage(File(file.path));
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _kCardBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.photo_library_rounded, color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Photo Gallery', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _kTextPrimary)),
+                              SizedBox(height: 2),
+                              Text('Select high-res shots from library', style: TextStyle(fontSize: 12, color: _kTextSecondary)),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: _kTextMuted, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                // Pro Capture Tips
+                Row(
+                  children: [
+                    Icon(Icons.auto_awesome, size: 16, color: _kGradientEnd),
+                    const SizedBox(width: 6),
+                    const Text('PRO CAPTURE TIPS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kGradientEnd, letterSpacing: 0.5)),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildTip(Icons.wb_sunny_outlined, 'Natural Lighting', 'Shoot during the golden hour or mid-day for the most accurate color reproduction in your space.'),
+                const SizedBox(height: 10),
+                _buildTip(Icons.crop_free, 'Wide Angles', 'Stand in a corner to capture the full layout. AI needs to see where walls meet the floor.'),
+                const SizedBox(height: 10),
+                _buildTip(Icons.cleaning_services_outlined, 'Clear Clutter', 'Remove small objects from surfaces for a cleaner mapping and more realistic furniture placement.'),
+              ],
+            ),
+          ),
+        ),
+        // Next button
+        _buildGradientButton(
+          label: 'Next',
+          enabled: selectedImage != null,
+          onPressed: _nextStep,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTip(IconData icon, String title, String desc) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: _kTextSecondary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kTextPrimary)),
+              const SizedBox(height: 2),
+              Text(desc, style: const TextStyle(fontSize: 12, color: _kTextSecondary, height: 1.4)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── STEP 1: Choose Your Aesthetic ────────────────────────────────
 
   Widget _buildTab(int index, IconData icon, String label, String badge, Color activeColor) {
     final isActive = _styleTab == index;
     return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticService.selectionClick();
-          setState(() => _styleTab = index);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: isActive
-                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 1))]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: isActive ? activeColor : AppColors.textMuted),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isActive ? activeColor : AppColors.textMuted),
-              ),
-              const SizedBox(width: 3),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: activeColor.withValues(alpha: isActive ? 0.15 : 0.08),
-                  borderRadius: BorderRadius.circular(5),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticService.selectionClick();
+            setState(() => _styleTab = index);
+          },
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive ? _kCardBg : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isActive
+                  ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4, offset: const Offset(0, 1))]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: isActive ? activeColor : _kTextMuted),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isActive ? activeColor : _kTextMuted),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
                 ),
-                child: Text(
-                  badge,
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: isActive ? activeColor : AppColors.textMuted),
+                const SizedBox(width: 3),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: activeColor.withValues(alpha: isActive ? 0.15 : 0.06),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: isActive ? activeColor : _kTextMuted),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -411,7 +689,6 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
           onTap: () {
             setState(() {
               _selectedWorld = world;
-              // Clear style selection when picking a world
               context.read<AppProvider>().setSelectedStyle(null);
             });
           },
@@ -419,28 +696,25 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isSelected ? const Color(0xFFEF4444) : AppColors.cardBorder,
-                width: isSelected ? 2.5 : 1,
-              ),
               boxShadow: isSelected
-                  ? [BoxShadow(color: const Color(0xFFEF4444).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4))]
+                  ? [BoxShadow(color: _kGradientEnd.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4))]
                   : [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(16),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   CachedNetworkImage(
                     imageUrl: world.imageUrl,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(color: AppColors.background),
+                    placeholder: (_, __) => Container(color: _kSurfaceBg),
                     errorWidget: (_, __, ___) => Container(
                       color: Colors.grey.shade200,
                       child: const Icon(Icons.image, color: Colors.grey),
                     ),
                   ),
+                  // Dark gradient overlay at bottom
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -451,6 +725,14 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                       ),
                     ),
                   ),
+                  // Selection border overlay
+                  if (isSelected)
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _kGradientEnd, width: 3),
+                      ),
+                    ),
                   if (isSelected)
                     Positioned(
                       top: 8,
@@ -458,8 +740,22 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                       child: Container(
                         width: 28,
                         height: 28,
-                        decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                        decoration: const BoxDecoration(color: _kGradientEnd, shape: BoxShape.circle),
                         child: const Icon(Icons.check, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  // NEW badge
+                  if (world.isNew)
+                    Positioned(
+                      top: 24,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('NEW', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
                       ),
                     ),
                   // World badge
@@ -469,8 +765,8 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -482,6 +778,7 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                       ),
                     ),
                   ),
+                  // Name and description at bottom
                   Positioned(
                     left: 10,
                     right: 10,
@@ -489,9 +786,17 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(world.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(
+                          world.name,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
                         const SizedBox(height: 2),
-                        Text(world.description, style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.8))),
+                        Text(
+                          world.description.isNotEmpty ? world.description : world.category,
+                          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
@@ -528,31 +833,40 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 8),
               const Text(
-                'Choose Your Style',
+                'Choose Your Aesthetic',
                 style: TextStyle(
-                  fontSize: 22,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: _kTextPrimary,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
+              const Text(
+                'Select the mood that defines your dream space.',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: _kTextSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
               // Tab bar
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
+                  color: _kSurfaceBg,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
-                    _buildTab(0, Icons.grid_view, 'Styles', '${standardStyles.length}', AppColors.primary),
+                    _buildTab(0, Icons.grid_view, 'Styles', '${standardStyles.length}', _kGradientEnd),
                     _buildTab(1, Icons.diamond, 'Premium', 'x2', const Color(0xFF6C63FF)),
-                    _buildTab(2, Icons.storefront, 'Store', '${_worlds.length}', const Color(0xFFEF4444)),
+                    _buildTab(2, Icons.storefront, 'Worlds', '${_worlds.length}', const Color(0xFFEF4444)),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
             ],
           ),
         ),
@@ -562,71 +876,83 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
             child: _styleTab == 2
                 ? _buildWorldsGrid()
                 : GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.85,
-              ),
-              itemCount: displayedStyles.length,
-              itemBuilder: (context, index) {
-                final style = displayedStyles[index];
-                final isSelected = selectedStyle?.id == style.id;
-                final isPremStyle = _isStylePremium(style.id);
-                return GestureDetector(
-                  onTap: () {
-                    appProvider.setSelectedStyle(style);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected
-                            ? (isPremStyle ? const Color(0xFF6C63FF) : AppColors.primary)
-                            : AppColors.cardBorder,
-                        width: isSelected ? 2.5 : 1,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: (isPremStyle ? const Color(0xFF6C63FF) : AppColors.primary).withValues(alpha: 0.2),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
+                    itemCount: displayedStyles.length,
+                    itemBuilder: (context, index) {
+                      final style = displayedStyles[index];
+                      final isSelected = selectedStyle?.id == style.id;
+                      final isPremStyle = _isStylePremium(style.id);
+                      return GestureDetector(
+                        onTap: () {
+                          appProvider.setSelectedStyle(style);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: (isPremStyle ? const Color(0xFF6C63FF) : _kGradientEnd).withValues(alpha: 0.25),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
                           child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                            borderRadius: BorderRadius.circular(16),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
+                                // Full-bleed image
                                 SkeletonImage(
                                   imageUrl: style.imageUrl,
                                   fit: BoxFit.cover,
                                 ),
+                                // Dark gradient overlay at bottom for text
+                                Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.transparent, Colors.black.withValues(alpha: 0.65)],
+                                      stops: const [0.45, 1.0],
+                                    ),
+                                  ),
+                                ),
+                                // Selection border
                                 if (isSelected)
                                   Container(
-                                    color: (isPremStyle ? const Color(0xFF6C63FF) : AppColors.primary).withValues(alpha: 0.15),
-                                    alignment: Alignment.topRight,
-                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isPremStyle ? const Color(0xFF6C63FF) : _kGradientEnd,
+                                        width: 3,
+                                      ),
+                                    ),
+                                  ),
+                                // Check mark
+                                if (isSelected)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
                                     child: Container(
                                       width: 28,
                                       height: 28,
                                       decoration: BoxDecoration(
-                                        color: isPremStyle ? const Color(0xFF6C63FF) : AppColors.primary,
+                                        color: isPremStyle ? const Color(0xFF6C63FF) : _kGradientEnd,
                                         shape: BoxShape.circle,
                                       ),
                                       child: const Icon(Icons.check, color: Colors.white, size: 16),
@@ -641,7 +967,7 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF6C63FF),
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -653,47 +979,32 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                                       ),
                                     ),
                                   ),
+                                // Name overlay at bottom
+                                Positioned(
+                                  left: 12,
+                                  right: 12,
+                                  bottom: 12,
+                                  child: Text(
+                                    style.name,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                style.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? (isPremStyle ? const Color(0xFF6C63FF) : AppColors.primary)
-                                      : AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                style.description,
-                                style: TextStyle(fontSize: 10, color: AppColors.textMuted),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ),
         // Next button
-        _buildBottomButton(
-          label: 'Next',
-          icon: Icons.arrow_forward,
+        _buildGradientButton(
+          label: 'Next \u2192',
           enabled: hasSelection,
           onPressed: _nextStep,
         ),
@@ -701,339 +1012,242 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  // ─── STEP 2: Custom Instructions ──────────────────────────────────
+  // ─── STEP 2: Refine Vision (Custom Instructions + Quality) ────────
 
-  Widget _buildStep2CustomInstructions(AppProvider appProvider) {
-    final selectedStyle = appProvider.selectedStyle;
-
+  Widget _buildStep2RefineVision(AppProvider appProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Custom Instructions',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Add specific changes you want (optional)',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Selected style card
-        if (selectedStyle != null)
-          Padding(
+        Expanded(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: SkeletonImage(
-                      imageUrl: selectedStyle.imageUrl,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Refine Vision',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: _kTextPrimary,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selectedStyle.name,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          selectedStyle.description,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: 20),
-        // Custom mode toggle
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GestureDetector(
-            onTap: () {
-              HapticService.selectionClick();
-              setState(() => _customMode = !_customMode);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: _customMode
-                    ? const Color(0xFFFFF7ED)
-                    : AppColors.tagBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _customMode
-                      ? Colors.orange.shade300
-                      : AppColors.cardBorder,
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.edit_note,
-                    size: 22,
-                    color: _customMode ? Colors.orange.shade700 : AppColors.textMuted,
+                const SizedBox(height: 6),
+                const Text(
+                  'Add the final artistic touches to your AI redesign instructions.',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: _kTextSecondary,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Enable Custom Instructions',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _customMode ? Colors.orange.shade800 : AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Costs 2x tokens for personalized results',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _customMode ? Colors.orange.shade600 : AppColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _customMode ? Colors.orange : AppColors.cardBorder,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _customMode ? 'ON' : 'OFF',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: _customMode ? Colors.white : AppColors.textMuted,
+                ),
+                const SizedBox(height: 24),
+
+                // ── Custom Instructions Section ──
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _kCardBg,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // Text field (shown when custom mode is on)
-        if (_customMode) ...[
-          const SizedBox(height: 14),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TextField(
-              controller: _customPromptController,
-              maxLines: 4,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'e.g. "Add a wooden bookshelf on the left wall, change the sofa to navy blue"',
-                hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.cardBorder),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.cardBorder),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.orange.shade300, width: 2),
-                ),
-              ),
-            ),
-          ),
-        ],
-        const Spacer(),
-        // Skip / Next buttons
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    HapticService.lightImpact();
-                    setState(() {
-                      _customMode = false;
-                      _customPromptController.clear();
-                    });
-                    _nextStep();
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 52),
-                    side: const BorderSide(color: AppColors.cardBorder),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: () {
-                    HapticService.lightImpact();
-                    _nextStep();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _customMode ? Colors.orange.shade600 : AppColors.primary,
-                    minimumSize: const Size(0, 52),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_customMode ? 'Next with Custom' : 'Next'),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.arrow_forward, size: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Custom Instructions',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: _kTextPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Costs 2x tokens for personalized results',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _customMode ? _kGradientEnd : _kTextMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Toggle switch
+                          Switch(
+                            value: _customMode,
+                            onChanged: (val) {
+                              HapticService.selectionClick();
+                              setState(() => _customMode = val);
+                            },
+                            activeThumbColor: _kGradientEnd,
+                            activeTrackColor: _kGradientEnd.withValues(alpha: 0.3),
+                          ),
+                        ],
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        child: _customMode
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 14),
+                                  TextField(
+                                    controller: _customPromptController,
+                                    maxLines: 4,
+                                    style: const TextStyle(fontSize: 14, color: _kTextPrimary),
+                                    decoration: InputDecoration(
+                                      hintText: 'Describe the mood, lighting, or specific artistic details you want to see...',
+                                      hintStyle: const TextStyle(fontSize: 13, color: _kTextMuted),
+                                      filled: true,
+                                      fillColor: _kSurfaceBg,
+                                      contentPadding: const EdgeInsets.all(14),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: const BorderSide(color: _kGradientEnd, width: 1.5),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  const Text('QUICK SUGGESTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kTextMuted, letterSpacing: 0.5)),
+                                  const SizedBox(height: 8),
+                                  // Quick Suggestions
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: _quickSuggestions.map((suggestion) {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          HapticService.selectionClick();
+                                          final current = _customPromptController.text;
+                                          final addition = current.isEmpty ? suggestion : '$current, $suggestion';
+                                          _customPromptController.text = addition;
+                                          _customPromptController.selection = TextSelection.fromPosition(
+                                            TextPosition(offset: addition.length),
+                                          );
+                                          setState(() {});
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: _kGradientEnd.withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            suggestion,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: _kGradientEnd,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  // ─── STEP 3: Choose Quality Tier ──────────────────────────────────
+                const SizedBox(height: 24),
 
-  Widget _buildStep3ChooseQuality(AppProvider appProvider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Choose Quality',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                // ── Choose Quality Section ──
+                const Text(
+                  'Choose Quality',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _kTextPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Select the quality tier for your design',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                _buildTierCard(
+                const SizedBox(height: 12),
+
+                // Standard option
+                _buildQualityCard(
                   tierId: 'free',
-                  label: 'FREE',
-                  subtitle: 'Fast & Free',
-                  description: 'Quick results with standard quality. Great for exploring different styles.',
-                  baseTokens: 1,
-                  gradient: null,
-                  color: Colors.grey.shade600,
-                  bgColor: Colors.grey.shade50,
-                  borderColor: Colors.grey.shade300,
+                  label: 'Standard',
+                  description: 'Great for quick previews',
+                  icon: Icons.speed,
                 ),
-                const SizedBox(height: 12),
-                _buildTierCard(
+                const SizedBox(height: 10),
+                // Ultra HD option
+                _buildQualityCard(
                   tierId: 'pro',
-                  label: 'PRO+',
-                  subtitle: 'Better Quality',
-                  description: 'Enhanced detail and accuracy. Recommended for most designs.',
-                  baseTokens: 2,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF9333EA)],
-                  ),
-                  color: const Color(0xFF7C3AED),
-                  bgColor: const Color(0xFFF5F3FF),
-                  borderColor: const Color(0xFFDDD6FE),
+                  label: 'Ultra HD',
+                  description: 'Maximum detail & fidelity',
+                  icon: Icons.hd,
                 ),
-                const SizedBox(height: 12),
-                _buildTierCard(
+                const SizedBox(height: 10),
+                // PRO+ option
+                _buildQualityCard(
                   tierId: 'best',
-                  label: 'BEST',
-                  subtitle: 'Best Quality',
-                  description: 'Maximum detail, photorealistic results. Best for final designs.',
-                  baseTokens: 3,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
-                  ),
-                  color: const Color(0xFFDC2626),
-                  bgColor: const Color(0xFFFEF2F2),
-                  borderColor: const Color(0xFFFECACA),
+                  label: 'PRO+',
+                  description: 'Our best model — premium results',
+                  icon: Icons.diamond,
                 ),
-                const Spacer(),
+
+                const SizedBox(height: 20),
+
+                // Pro Tip
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0EDFF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lightbulb_outline, size: 18, color: _kGradientEnd),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Pro Tip', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kGradientEnd)),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Combining descriptive scene references like "Cozy Dusk" or "Vintage Summer" keeps the AI focused and produces more coherent results.',
+                              style: TextStyle(fontSize: 12, color: _kTextSecondary, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
         ),
-        _buildBottomButton(
-          label: 'Next',
-          icon: Icons.arrow_forward,
+        _buildGradientButton(
+          label: 'Continue \u2192',
           enabled: true,
           onPressed: _nextStep,
         ),
@@ -1041,19 +1255,16 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  Widget _buildTierCard({
+  Widget _buildQualityCard({
     required String tierId,
     required String label,
-    required String subtitle,
     required String description,
-    required int baseTokens,
-    required Gradient? gradient,
-    required Color color,
-    required Color bgColor,
-    required Color borderColor,
+    required IconData icon,
   }) {
     final isSelected = _selectedTier == tierId;
-    final tokenCost = baseTokens * (_customMode ? 2 : 1);
+    final isPro = tierId == 'pro';
+    final isBest = tierId == 'best';
+    final accentColor = isBest ? const Color(0xFFEF4444) : _kGradientEnd;
 
     return GestureDetector(
       onTap: () {
@@ -1064,42 +1275,48 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? bgColor : Colors.white,
+          color: isSelected ? ((isPro || isBest) ? accentColor.withValues(alpha: 0.06) : _kCardBg) : _kCardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? color : AppColors.cardBorder,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+          border: isSelected
+              ? Border.all(color: accentColor, width: 2)
               : null,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? accentColor.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: isSelected ? 12 : 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            // Tier badge
+            // Radio indicator
             Container(
-              width: 56,
-              height: 56,
+              width: 20, height: 20,
               decoration: BoxDecoration(
-                gradient: gradient,
-                color: gradient == null ? Colors.grey.shade200 : null,
+                shape: BoxShape.circle,
+                border: Border.all(color: isSelected ? accentColor : _kTextMuted, width: 2),
+                color: isSelected ? accentColor : Colors.transparent,
+              ),
+              child: isSelected ? const Icon(Icons.check, size: 12, color: Colors.white) : null,
+            ),
+            const SizedBox(width: 12),
+            // Icon
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: isSelected ? (isBest ? const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]) : _kGradient) : null,
+                color: isSelected ? null : _kSurfaceBg,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: tierId == 'best' ? 11 : 12,
-                  fontWeight: FontWeight.w900,
-                  color: gradient != null ? Colors.white : Colors.grey.shade700,
-                ),
-                textAlign: TextAlign.center,
+              child: Icon(
+                icon,
+                size: 24,
+                color: isSelected ? Colors.white : _kTextMuted,
               ),
             ),
             const SizedBox(width: 14),
@@ -1109,66 +1326,36 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    subtitle,
+                    label,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? color : AppColors.textPrimary,
+                      color: isSelected ? accentColor : _kTextPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _kTextMuted,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // Token cost + check
-            Column(
-              children: [
-                if (isSelected)
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 14),
-                  )
-                else
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.cardBorder, width: 2),
-                    ),
-                  ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isSelected ? color.withValues(alpha: 0.1) : AppColors.tagBackground,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '$tokenCost tk',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? color : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
+            // Radio indicator
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: isSelected ? (isBest ? const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]) : _kGradient) : null,
+                border: isSelected ? null : Border.all(color: _kTextMuted.withValues(alpha: 0.4), width: 2),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, color: Colors.white, size: 14)
+                  : null,
             ),
           ],
         ),
@@ -1176,257 +1363,274 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  // ─── STEP 4: Confirm ──────────────────────────────────────────────
+  // ─── STEP 3: Review Selection ─────────────────────────────────────
 
-  Widget _buildStep4Confirm(AppProvider appProvider) {
+  Widget _buildStep3ReviewSelection(AppProvider appProvider) {
     final selectedStyle = appProvider.selectedStyle;
     final selectedImage = appProvider.selectedImage;
-    final tierLabel = _selectedTier == 'free'
-        ? 'FREE'
-        : _selectedTier == 'pro'
-            ? 'PRO+'
-            : 'BEST';
+    final tierLabel = _selectedTier == 'free' ? 'Standard' : _selectedTier == 'best' ? 'PRO+' : 'Ultra HD';
+
+    // Token breakdown
+    final baseCost = AppProvider.tierMultipliers[_selectedTier] ?? 1;
+    final isPremStyle = selectedStyle != null && _isStylePremium(selectedStyle.id);
+    final premMul = isPremStyle ? 2 : 1;
+    final totalTokens = _tokenCost;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Confirm Your Design',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Review your selections before starting',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Photo
+                const SizedBox(height: 8),
+                const Text(
+                  'Review Selection',
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: _kTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Original (photo preview) ──
+                const Text(
+                  'Original',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kTextSecondary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 GestureDetector(
                   onTap: _showImageSourceDialog,
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    height: 180,
+                    width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: selectedImage != null
-                            ? Image.file(
-                                selectedImage,
-                                width: 72,
-                                height: 72,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                width: 72,
-                                height: 72,
-                                color: AppColors.tagBackground,
-                                child: Icon(Icons.add_a_photo, color: AppColors.primary),
-                              ),
+                      gradient: const LinearGradient(
+                        colors: [_kGradientStart, _kGradientEnd, Color(0xFF8B5CF6)],
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              selectedImage != null ? 'Room Photo' : 'No Photo Selected',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _kGradientEnd.withValues(alpha: 0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: selectedImage != null
+                              ? Image.file(
+                                  selectedImage,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                )
+                              : Container(
+                                  color: _kSurfaceBg,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add_a_photo, color: _kGradientEnd.withValues(alpha: 0.5), size: 36),
+                                        const SizedBox(height: 8),
+                                        const Text('Tap to add a photo', style: TextStyle(color: _kTextMuted, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        Positioned(
+                          top: 12, left: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              selectedImage != null ? 'Tap to change' : 'Tap to add a photo',
-                              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.photo_camera, size: 12, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('ORIGINAL CANVAS', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Style + Quality side by side ──
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Style card
+                      Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: _kCardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                      ),
-                      if (selectedImage != null)
-                        Icon(Icons.check_circle, color: AppColors.success, size: 22)
-                      else
-                        Icon(Icons.warning_amber, color: Colors.orange, size: 22),
-                    ],
-                  ),
-                ),
-                ),
-                const SizedBox(height: 12),
-                // Style
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      if (selectedStyle != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: SkeletonImage(
-                            imageUrl: selectedStyle.imageUrl,
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      const SizedBox(width: 14),
-                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
                               'Style',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kTextMuted),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
+                            if (selectedStyle != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SkeletonImage(
+                                  imageUrl: selectedStyle.imageUrl,
+                                  width: double.infinity,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              )
+                            else if (_selectedWorld != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: CachedNetworkImage(
+                                  imageUrl: _selectedWorld!.imageUrl,
+                                  width: double.infinity,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: _kSurfaceBg,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: _kSurfaceBg,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(Icons.image, color: _kTextMuted, size: 20),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 6),
                             Text(
                               selectedStyle?.name ?? _selectedWorld?.name ?? appProvider.selectedWorldPrompt?.split(' ').take(3).join(' ') ?? 'None',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kTextPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            if (selectedStyle != null)
-                              Text(
-                                selectedStyle.description,
-                                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                              ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Tier
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.cardBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
+                    ),
+                    const SizedBox(width: 12),
+                    // Quality card
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          gradient: _selectedTier == 'pro'
-                              ? const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF9333EA)])
-                              : _selectedTier == 'best'
-                                  ? const LinearGradient(colors: [Color(0xFFDC2626), Color(0xFFEF4444)])
-                                  : null,
-                          color: _selectedTier == 'free' ? Colors.grey.shade200 : null,
-                          borderRadius: BorderRadius.circular(10),
+                          color: _kCardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          tierLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            color: _selectedTier == 'free' ? Colors.grey.shade700 : Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Quality Tier',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
+                              'Quality',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kTextMuted),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              width: double.infinity,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: _selectedTier == 'best'
+                                    ? const LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)])
+                                    : _selectedTier == 'pro' ? _kGradient : null,
+                                color: _selectedTier == 'free' ? _kSurfaceBg : null,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(
+                                _selectedTier == 'best' ? Icons.diamond : _selectedTier == 'pro' ? Icons.hd : Icons.speed,
+                                color: _selectedTier != 'free' ? Colors.white : _kTextMuted,
+                                size: 24,
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
                             Text(
                               tierLabel,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _kTextPrimary),
                             ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
+                  ],
                   ),
                 ),
-                // Custom instructions (if any)
+
+                // Custom instructions summary
                 if (_customMode && _customPromptController.text.trim().isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.orange.shade200),
+                      color: _kGradientEnd.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.edit_note, size: 20, color: Colors.orange.shade700),
-                        const SizedBox(width: 12),
+                        Icon(Icons.edit_note, size: 18, color: _kGradientEnd.withValues(alpha: 0.7)),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              const Text(
                                 'Custom Instructions',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.orange.shade800,
-                                ),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kGradientEnd),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _customPromptController.text.trim(),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.orange.shade900,
-                                ),
-                                maxLines: 3,
+                                style: const TextStyle(fontSize: 12, color: _kTextSecondary),
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -1436,45 +1640,73 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 16),
-                // Token cost summary
+
+                const SizedBox(height: 20),
+
+                // ── Token breakdown ──
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.tagBackground,
+                    color: _kCardBg,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     children: [
+                      _buildTokenRow('Base Transformation', baseCost),
+                      if (isPremStyle)
+                        _buildTokenRow('Premium Style (x2)', baseCost),
+                      if (_customMode)
+                        _buildTokenRow('Custom Instructions (x2)', baseCost * premMul),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 1,
+                        color: _kSurfaceBg,
+                      ),
+                      const SizedBox(height: 10),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(Icons.token, size: 20, color: AppColors.primary),
-                          const SizedBox(width: 8),
                           const Text(
-                            'Total Cost',
+                            'TOTAL TOKENS',
                             style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: _kTextPrimary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: _kGradient,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '$totalTokens',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      Text(
-                        '$_tokenCost Token${_tokenCost > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 12),
+
                 if (appProvider.tokenBalance < _tokenCost) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -1504,130 +1736,36 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
           ),
         ),
         // Start Design / Get More Tokens button
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: AppColors.cardBorder)),
+        if (appProvider.tokenBalance < _tokenCost)
+          _buildGradientButton(
+            label: 'Get More Tokens',
+            enabled: true,
+            onPressed: () {
+              HapticService.mediumImpact();
+              Navigator.pushNamed(context, '/purchase');
+            },
+          )
+        else
+          _buildGradientButton(
+            label: selectedImage == null ? 'Select Photo First' : 'Start Design',
+            enabled: true,
+            onPressed: selectedImage != null ? _startDesign : _showImageSourceDialog,
           ),
-          child: appProvider.tokenBalance < _tokenCost
-              ? ElevatedButton(
-                  onPressed: () {
-                    HapticService.mediumImpact();
-                    Navigator.pushNamed(context, '/purchase');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade600,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.shopping_cart, size: 22),
-                      SizedBox(width: 10),
-                      Text(
-                        'Get More Tokens',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : GestureDetector(
-                  onTap: selectedImage == null ? _showImageSourceDialog : null,
-                  child: ElevatedButton(
-                    onPressed: selectedImage != null
-                        ? _startDesign
-                        : _showImageSourceDialog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _customMode ? Colors.orange.shade600 : AppColors.primary,
-                      disabledBackgroundColor: AppColors.cardBorder,
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          selectedImage == null
-                              ? Icons.add_a_photo
-                              : Icons.auto_awesome,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          selectedImage == null ? 'Select Photo First' : 'Start Design',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$_tokenCost Token${_tokenCost > 1 ? 's' : ''}',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-        ),
+        const SizedBox(height: 8),
       ],
     );
   }
 
-  // ─── Shared bottom button ─────────────────────────────────────────
-
-  Widget _buildBottomButton({
-    required String label,
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: AppColors.cardBorder)),
-      ),
-      child: ElevatedButton(
-        onPressed: enabled ? onPressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.cardBorder,
-          minimumSize: const Size(double.infinity, 52),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(icon, size: 18),
-          ],
-        ),
+  Widget _buildTokenRow(String label, int amount) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          const Text('·  ', style: TextStyle(fontSize: 16, color: _kTextSecondary)),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: _kTextSecondary))),
+          Text('$amount', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kTextPrimary)),
+          const Text(' TOKENS', style: TextStyle(fontSize: 10, color: _kTextMuted)),
+        ],
       ),
     );
   }
@@ -1654,19 +1792,18 @@ class _ImageSourceButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: AppColors.tagBackground,
+          color: _kSurfaceBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.cardBorder),
         ),
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: _kGradientEnd.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppColors.primary, size: 28),
+              child: Icon(icon, color: _kGradientEnd, size: 28),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1674,7 +1811,7 @@ class _ImageSourceButton extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _kTextPrimary,
               ),
             ),
           ],
