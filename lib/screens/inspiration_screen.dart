@@ -25,6 +25,7 @@ class InspirationScreen extends StatefulWidget {
   /// Each maps to keyword patterns used to filter worlds from the API.
   static const List<String> collectionNames = [
     'Harry Potter',
+    'Lord of the Rings',
     'Star Wars',
     'The Matrix',
     'Game of Thrones',
@@ -41,6 +42,16 @@ class InspirationScreen extends StatefulWidget {
     'Modern Architecture',
     'Zodiac & Esoteric',
     'Mythology',
+    'Brooklyn Nine-Nine',
+    'Parks and Recreation',
+    'Sitcoms',
+    'Breaking Bad',
+    'Ted Lasso',
+    'The Sopranos',
+    'Yellowstone',
+    'Chernobyl',
+    'Action Films',
+    'Romance Films',
   ];
 
   @override
@@ -66,6 +77,7 @@ class _InspirationScreenState extends State<InspirationScreen> {
   /// Worlds whose id contains any of these keywords belong to that collection.
   static const Map<String, List<String>> _categoryKeywords = {
     'Harry Potter': ['gryffindor', 'hogwarts', 'slytherin', 'dumbledore', 'potions', 'requirement'],
+    'Lord of the Rings': ['lotr-', 'hobbit-hole', 'rivendell', 'minas-tirith', 'mordor', 'rohan', 'lothlorien', 'moria', 'isengard', 'helms-deep', 'fangorn', 'prancing-pony', 'eregion', 'gondor-library', 'green-dragon', 'erebor', 'edoras', 'grey-havens', 'tom-bombadil', 'thranduil', 'dead-marshes'],
     'Star Wars': ['millennium', 'jedi', 'tatooine', 'death-star', 'naboo', 'mos-eisley'],
     'The Matrix': ['matrix', 'construct', 'neb', 'neo-apartment', 'zion', 'club-hel'],
     'Game of Thrones': ['winterfell', 'iron-throne', 'dragonstone', 'castle-black', 'highgarden', 'kings-landing', 'braavos', 'dorne', 'meereen', 'qarth', 'eyrie', 'pyke', 'oldtown', 'casterly', 'white-walker'],
@@ -101,6 +113,51 @@ class _InspirationScreenState extends State<InspirationScreen> {
       'olympus', 'asgard', 'valhalla', 'ragnarok', 'zeus', 'odin', 'thor',
       'loki', 'apollo', 'athena', 'elemental', 'chinese-dragon',
       'chinese-phoenix', 'chinese-',
+    ],
+    'Brooklyn Nine-Nine': [
+      'b99-',
+    ],
+    'Parks and Recreation': [
+      'parks-rec',
+    ],
+    'Sitcoms': [
+      'seinfeld', 'the-office-dunder', 'himym', 'bigbang', 'b99-',
+      'parks-rec', 'schitts-creek', 'modern-family', 'fresh-prince', 'frasier',
+      'friends-apartment',
+    ],
+    'Breaking Bad': [
+      'breaking-bad',
+    ],
+    'Ted Lasso': [
+      'ted-lasso',
+    ],
+    'The Sopranos': [
+      'sopranos-',
+    ],
+    'Yellowstone': [
+      'yellowstone-',
+    ],
+    'Chernobyl': [
+      'chernobyl-',
+    ],
+    'Action Films': [
+      'dark-knight', 'inception', 'madmax', 'gladiator', 'killbill',
+    ],
+    'Romance Films': [
+      'notebook', 'pride-pemberley', 'pride-bennet', 'pride-ballroom',
+      'lalaland', 'amelie', 'casablanca',
+    ],
+    'Mad Max': [
+      'madmax-',
+    ],
+    'Gladiator': [
+      'gladiator-',
+    ],
+    'Kill Bill': [
+      'killbill-',
+    ],
+    'The Notebook': [
+      'notebook-',
     ],
   };
 

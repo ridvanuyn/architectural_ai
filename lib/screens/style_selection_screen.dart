@@ -823,10 +823,21 @@ class _StyleSelectionScreenState extends State<StyleSelectionScreen> {
     );
   }
 
-  // Curated design styles for the Design tab. Japanese-influenced first 4.
+  // Curated design styles for the Design tab. Room tools first, then aesthetics.
   // Anything else in WorldService falls into the World tab (fictional/thematic).
   static const List<String> _designWorldIds = [
-    // Japanese-influenced first 4
+    // Room modification tools (practical edits)
+    'tool-clean-room',
+    'tool-light-room',
+    'tool-sunset-room',
+    'tool-delete-clutter',
+    'tool-redesign-layout',
+    'tool-change-wall-color',
+    'tool-change-floor',
+    'tool-add-plants',
+    'tool-empty-room',
+    'tool-night-mode',
+    // Japanese-influenced
     'japandi',
     'wabi-sabi-modern',
     'zen-minimalism',

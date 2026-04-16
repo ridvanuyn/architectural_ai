@@ -23,11 +23,13 @@ class HomeScreen extends StatelessWidget {
 
   static const List<_CategoryItem> _categories = [
     _CategoryItem(name: 'Harry Potter', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/dark-academia.jpg', icon: Icons.auto_fix_high),
+    _CategoryItem(name: 'Lord of the Rings', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/lotr-rivendell.jpg', icon: Icons.landscape),
     _CategoryItem(name: 'Star Wars', imageUrl: 'https://images.unsplash.com/photo-1547700055-b61cacebece9?w=400', icon: Icons.rocket_launch),
     _CategoryItem(name: 'The Matrix', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/cyberpunk-loft.jpg', icon: Icons.code),
     _CategoryItem(name: 'Game of Thrones', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/gothic-romantic.jpg', icon: Icons.shield),
     _CategoryItem(name: 'Anime Worlds', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/cottagecore-cozy.jpg', icon: Icons.animation),
     _CategoryItem(name: 'Gaming Realms', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/cyberpunk-loft.jpg', icon: Icons.sports_esports),
+    _CategoryItem(name: 'Sitcoms', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/friends-apartment.jpg', icon: Icons.tv),
     _CategoryItem(name: 'Back to the Future', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/bttf-delorean-workshop.jpg', icon: Icons.access_time),
     _CategoryItem(name: 'Luxury Living', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/baroque-opulent.jpg', icon: Icons.diamond),
     _CategoryItem(name: 'Time Travel', imageUrl: 'https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/art-deco-glamour.jpg', icon: Icons.history_edu),
