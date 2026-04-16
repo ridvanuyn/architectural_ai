@@ -10,7 +10,6 @@ import 'screens/home_shell.dart';
 import 'screens/inspiration_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/processing_screen.dart';
-import 'screens/purchase_screen.dart';
 import 'screens/result_detail_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/style_selection_screen.dart';
@@ -54,7 +53,6 @@ class ArchitecturalAIApp extends StatelessWidget {
               ResultDetailScreen.routeName: (context) => const ResultDetailScreen(),
               HistoryScreen.routeName: (context) => const HistoryScreen(),
               StoreScreen.routeName: (context) => const StoreScreen(),
-              PurchaseScreen.routeName: (context) => const PurchaseScreen(),
               SettingsScreen.routeName: (context) => const SettingsScreen(),
               InspirationScreen.routeName: (context) => const InspirationScreen(),
             },

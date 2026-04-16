@@ -1,6 +1,6 @@
 class ApiConfig {
   // Base URL - change for production
-  static const String baseUrl = 'http://localhost:4000/api';
+  static const String baseUrl = 'https://architectural.puffcounterapp.com/api';
   
   // Auth endpoints
   static const String authRegister = '/auth/register';
@@ -25,4 +25,6 @@ class ApiConfig {
   static const String tokenTransactions = '/tokens/transactions';
   static const String tokenPurchase = '/tokens/purchase';
   static const String tokenPromo = '/tokens/promo';
+  static const String tokenGrant = '/tokens/grant';
+  static const String tokenRefund = '/tokens/refund';
 }

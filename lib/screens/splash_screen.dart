@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/localization/localization_extension.dart';
 import '../core/providers/app_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
@@ -100,10 +101,10 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 12),
                 // Tagline
-                const Text(
-                  'Your dream space, within your\nreach.',
+                Text(
+                  context.tr('splash_tagline'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
                     height: 1.4,
@@ -138,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'INITIALIZING AI ENGINE',
+                          context.tr('splash_initializing'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -152,9 +153,9 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
                 const SizedBox(height: 40),
                 // Footer
-                const Text(
-                  'POWERED BY AI',
-                  style: TextStyle(
+                Text(
+                  context.tr('splash_powered_by_ai'),
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textMuted,

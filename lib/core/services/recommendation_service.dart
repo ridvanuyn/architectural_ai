@@ -7,6 +7,7 @@ import 'style_service.dart';
 import 'world_service.dart';
 
 /// Unified item for recommendations — wraps both styles and worlds.
+/// [prompt] is non-null only for world items — styles rely on style.id instead.
 class RecommendationItem {
   final String id;
   final String name;
@@ -15,6 +16,7 @@ class RecommendationItem {
   final String category;
   final List<String> tags;
   final int popularity;
+  final String? prompt;
 
   const RecommendationItem({
     required this.id,
@@ -24,7 +26,10 @@ class RecommendationItem {
     required this.category,
     this.tags = const [],
     this.popularity = 0,
+    this.prompt,
   });
+
+  bool get isWorld => prompt != null;
 }
 
 class RecommendationService {
@@ -221,6 +226,7 @@ class RecommendationService {
           description: w.description,
           imageUrl: w.imageUrl,
           category: w.category,
+          prompt: w.prompt,
         ));
       }
     } catch (e) {

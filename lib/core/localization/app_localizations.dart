@@ -9,6 +9,9 @@ import 'languages/hi.dart';
 import 'languages/ar.dart';
 import 'languages/fr.dart';
 import 'languages/de.dart';
+import 'languages/it.dart';
+import 'languages/ja.dart';
+import 'languages/ko.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -48,6 +51,12 @@ class AppLocalizations {
         return frTranslations;
       case 'de':
         return deTranslations;
+      case 'it':
+        return itTranslations;
+      case 'ja':
+        return jaTranslations;
+      case 'ko':
+        return koTranslations;
       default:
         return enTranslations;
     }
@@ -152,6 +161,24 @@ class SupportedLanguage {
       name: 'German',
       nativeName: 'Deutsch',
       flag: '🇩🇪',
+    ),
+    SupportedLanguage(
+      code: 'it',
+      name: 'Italian',
+      nativeName: 'Italiano',
+      flag: '🇮🇹',
+    ),
+    SupportedLanguage(
+      code: 'ja',
+      name: 'Japanese',
+      nativeName: '日本語',
+      flag: '🇯🇵',
+    ),
+    SupportedLanguage(
+      code: 'ko',
+      name: 'Korean',
+      nativeName: '한국어',
+      flag: '🇰🇷',
     ),
   ];
   

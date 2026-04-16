@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +11,7 @@ import '../core/services/engagement_notification_service.dart';
 import '../core/services/haptic_service.dart';
 import '../core/services/revenue_cat_service.dart';
 import '../theme/app_theme.dart';
+import 'purchase_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -55,37 +58,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     HapticService.selectionClick();
   }
 
-  void _navigateToPurchase() {
+  Future<void> _navigateToPurchase({
+    PurchaseTab tab = PurchaseTab.premium,
+  }) async {
     HapticService.lightImpact();
-    Navigator.pushNamed(context, '/purchase');
+    await PurchaseScreen.showSheet(context, initialTab: tab);
   }
 
-  void _showRateAppDialog() {
+  /// Launch the native in-app review flow. Falls back to opening the store
+  /// listing if the in-app prompt is unavailable (simulator, unsigned builds,
+  /// review quota exhausted, etc.). Marks the review reward pending so the
+  /// +5 token bonus can be claimed 1 hour later.
+  Future<void> _handleRateApp() async {
     HapticService.lightImpact();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(context.tr('rate_app')),
-        content: const Text(
-          'If you enjoy using the app, please take a moment to rate us on the App Store. Your feedback helps us improve!',
+    final appProvider = context.read<AppProvider>();
+    final alreadyClaimed = appProvider.reviewRewardClaimed;
+    final alreadyPending = appProvider.reviewRewardPending;
+
+    // Start the reward timer as soon as the user opts in (even if the OS
+    // suppresses the native dialog — Apple still honors the intent).
+    if (!alreadyClaimed && !alreadyPending) {
+      await appProvider.markReviewTapped();
+    }
+
+    final inAppReview = InAppReview.instance;
+    try {
+      if (await inAppReview.isAvailable()) {
+        await inAppReview.requestReview();
+      } else {
+        await inAppReview.openStoreListing();
+      }
+    } catch (e) {
+      debugPrint('In-app review failed: $e');
+      // Best-effort fallback to the store page.
+      try {
+        await inAppReview.openStoreListing();
+      } catch (e2) {
+        debugPrint('Store listing fallback failed: $e2');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.tr('app_store_open_failed')),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// Claim the +5 token reward when it has ripened. Shows a brief confirmation.
+  Future<void> _claimReviewReward() async {
+    HapticService.lightImpact();
+    final appProvider = context.read<AppProvider>();
+    final before = appProvider.tokenBalance;
+    await appProvider.claimReviewReward();
+    if (!mounted) return;
+    final granted = appProvider.tokenBalance - before;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          granted > 0
+              ? '+$granted ${context.tr('review_tokens_thanks')}'
+              : context.tr('reward_not_available'),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(context.tr('maybe_later')),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Opening App Store...')),
-              );
-            },
-            child: Text(context.tr('rate_app')),
-          ),
-        ],
       ),
+    );
+  }
+
+  /// Resolve the subtitle + tap handler for the Rate App row based on reward
+  /// state (no pending reward / waiting / ready to claim / already claimed).
+  ({String? subtitle, VoidCallback onTap}) _rateAppRowState(
+    AppProvider appProvider,
+  ) {
+    final now = DateTime.now();
+    if (appProvider.reviewRewardClaimed) {
+      // Already redeemed — leave the row active for re-reviews but no CTA.
+      return (subtitle: null, onTap: _handleRateApp);
+    }
+    if (appProvider.reviewRewardEligibleAt(now)) {
+      return (
+        subtitle: context.tr('review_reward_ready').replaceFirst('%s', '${AppProvider.kReviewRewardAmount}'),
+        onTap: _claimReviewReward,
+      );
+    }
+    if (appProvider.reviewRewardPending) {
+      return (
+        subtitle: context.tr('review_reward_waiting'),
+        onTap: _handleRateApp,
+      );
+    }
+    return (
+      subtitle:
+          context.tr('review_reward_invite').replaceFirst('%s', '${AppProvider.kReviewRewardAmount}'),
+      onTap: _handleRateApp,
     );
   }
 
@@ -96,26 +161,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(context.tr('help_support')),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Need help? We\'re here for you!'),
-            SizedBox(height: 12),
-            Text('Email: support@architecturai.app'),
-            SizedBox(height: 4),
-            Text('Response time: Within 24 hours'),
-            SizedBox(height: 12),
-            Text('FAQ topics:'),
-            Text('  - How to use tokens'),
-            Text('  - Design quality tips'),
-            Text('  - Account & billing'),
+            Text(context.tr('help_line_intro')),
+            const SizedBox(height: 12),
+            const Text('Email: support@architecturai.app'),
+            const SizedBox(height: 4),
+            Text(context.tr('help_response_time')),
+            const SizedBox(height: 12),
+            Text(context.tr('faq_topics')),
+            Text(context.tr('faq_how_tokens')),
+            Text(context.tr('faq_quality_tips')),
+            Text(context.tr('faq_account_billing')),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),
@@ -129,19 +194,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(context.tr('contact_us')),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Email: support@architecturai.app'),
-            SizedBox(height: 8),
-            Text('We typically respond within 24 hours.'),
+            const Text('Email: support@architecturai.app'),
+            const SizedBox(height: 8),
+            Text(context.tr('contact_response')),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),
@@ -155,22 +220,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(context.tr('privacy_policy')),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Your privacy is important to us.\n\n'
-            'We collect minimal data necessary to provide our service:\n'
-            '- Device identifier for account management\n'
-            '- Photos you upload (processed and deleted within 24h)\n'
-            '- Usage analytics to improve the app\n\n'
-            'We do not sell your personal data to third parties.\n\n'
-            'For the full privacy policy, visit:\n'
-            'https://architecturai.app/privacy',
-          ),
+        content: SingleChildScrollView(
+          child: Text(context.tr('privacy_policy_body')),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),
@@ -184,22 +240,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(context.tr('terms_of_service')),
-        content: const SingleChildScrollView(
-          child: Text(
-            'By using this app, you agree to our Terms of Service.\n\n'
-            'Key points:\n'
-            '- Tokens are non-refundable once used\n'
-            '- Generated designs are for personal use\n'
-            '- We reserve the right to modify pricing\n'
-            '- Abuse of the service may result in account suspension\n\n'
-            'For the full terms, visit:\n'
-            'https://architecturai.app/terms',
-          ),
+        content: SingleChildScrollView(
+          child: Text(context.tr('terms_of_service_body')),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
+            child: Text(context.tr('ok')),
           ),
         ],
       ),
@@ -223,8 +270,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account deletion request submitted. You will receive a confirmation email.'),
+                SnackBar(
+                  content: Text(context.tr('account_deletion_submitted')),
                 ),
               );
             },
@@ -239,19 +286,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _restorePurchases() async {
     HapticService.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Restoring purchases...')),
+      SnackBar(content: Text(context.tr('restoring_purchases'))),
     );
 
     try {
-      final restored = await RevenueCatService().restorePurchases();
+      final appProvider = context.read<AppProvider>();
+      final restored = await RevenueCatService()
+          .restorePurchases(appProvider: appProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               restored
-                  ? 'Purchases restored successfully!'
-                  : 'No purchases found to restore.',
+                  ? context.tr('purchases_restored')
+                  : context.tr('no_purchases_found'),
             ),
           ),
         );
@@ -260,8 +309,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to restore purchases. Please try again.'),
+          SnackBar(
+            content: Text(context.tr('restore_purchases_failed')),
           ),
         );
       }
@@ -288,6 +337,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Premium status banner
+            _PremiumStatusCard(
+              appProvider: appProvider,
+              onTap: () => _navigateToPurchase(tab: PurchaseTab.premium),
+            ),
+            const SizedBox(height: 16),
 
             // Account Info Card
             Container(
@@ -320,26 +376,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Token Balance',
-                              style: TextStyle(
+                            Text(
+                              context.tr('token_balance'),
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.textMuted,
                               ),
                             ),
-                            Text(
-                              '${appProvider.tokenBalance} tokens',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  context.tr('tokens_count').replaceFirst('%s', '${appProvider.displayedTokenBalance}'),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                if (appProvider.hasPendingDeduction) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppColors.warning.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      context.tr('pending_deduction').replaceFirst('%s', '${appProvider.pendingDeduction}'),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.warning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
+                            if (appProvider.isPremiumSubscriber &&
+                                appProvider.premiumMonthlyGrant > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  context.tr('premium_monthly_tokens').replaceFirst('%s', '${appProvider.premiumMonthlyGrant}'),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
                       GestureDetector(
-                        onTap: _navigateToPurchase,
+                        onTap: () => _navigateToPurchase(tab: PurchaseTab.tokens),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -347,9 +440,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text(
-                            'Get More',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('get_more'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -359,6 +452,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await appProvider.addTokens(10);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('+10 test tokens added'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.science_outlined, size: 18),
+                        label: const Text('Add 10 test tokens (debug)'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(
+                            color: AppColors.primary.withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Divider(height: 1, color: AppColors.cardBorder),
                   const SizedBox(height: 12),
@@ -435,8 +557,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsItem(
                     icon: Icons.diamond_outlined,
                     title: context.tr('premium_subscription'),
-                    subtitle: context.tr('premium_desc'),
-                    onTap: _navigateToPurchase,
+                    subtitle: appProvider.isPremiumSubscriber
+                        ? context.tr('premium_active_subtitle').replaceFirst('%s', '${appProvider.premiumMonthlyGrant}')
+                        : context.tr('premium_desc'),
+                    onTap: () => _navigateToPurchase(tab: PurchaseTab.premium),
                   ),
                   Divider(height: 1, color: AppColors.cardBorder),
                   _SettingsItem(
@@ -548,19 +672,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Rate App
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
-              child: _SettingsItem(
-                icon: Icons.star_outline,
-                title: context.tr('rate_app'),
-                onTap: _showRateAppDialog,
-              ),
-            ),
+            // Rate App (with +5 token review reward CTA)
+            Builder(builder: (_) {
+              final rateState = _rateAppRowState(appProvider);
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: _SettingsItem(
+                  icon: Icons.star_outline,
+                  title: context.tr('rate_app'),
+                  subtitle: rateState.subtitle,
+                  onTap: rateState.onTap,
+                ),
+              );
+            }),
             const SizedBox(height: 16),
 
             // Danger Zone
@@ -574,8 +702,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _SettingsItem(
                     icon: Icons.refresh,
-                    title: 'Reset Onboarding',
-                    subtitle: 'Start fresh (for testing)',
+                    title: context.tr('reset_onboarding'),
+                    subtitle: context.tr('reset_onboarding_desc'),
                     onTap: () async {
                       HapticService.mediumImpact();
                       await context.read<AppProvider>().resetOnboarding();
@@ -848,5 +976,130 @@ class _SettingsItem extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Header card summarizing the user's current tier (Free / Premium),
+/// monthly grant remaining, and a CTA button.
+class _PremiumStatusCard extends StatelessWidget {
+  const _PremiumStatusCard({required this.appProvider, required this.onTap});
+
+  final AppProvider appProvider;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPremium = appProvider.isPremiumSubscriber;
+    final monthlyGrant = appProvider.premiumMonthlyGrant;
+    final grantedAt = appProvider.premiumGrantedAt;
+
+    final gradientColors = isPremium
+        ? [AppColors.primary, AppColors.primaryDark]
+        : [Colors.white, Colors.white];
+    final textColor = isPremium ? Colors.white : AppColors.textPrimary;
+    final subColor =
+        isPremium ? Colors.white.withValues(alpha: 0.8) : AppColors.textSecondary;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: gradientColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isPremium ? Colors.transparent : AppColors.cardBorder,
+          ),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isPremium
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isPremium ? Icons.diamond : Icons.diamond_outlined,
+                color: isPremium ? Colors.white : AppColors.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isPremium ? context.tr('premium_member') : context.tr('free_plan'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isPremium
+                        ? _premiumSubtitle(context, monthlyGrant, grantedAt)
+                        : context.tr('upgrade_subtitle'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: subColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: isPremium
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                isPremium ? context.tr('manage') : context.tr('upgrade'),
+                style: TextStyle(
+                  color: isPremium ? Colors.white : Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _premiumSubtitle(BuildContext context, int monthlyGrant, DateTime? grantedAt) {
+    if (monthlyGrant <= 0) return context.tr('premium_benefits_active');
+    if (grantedAt == null) {
+      return context.tr('includes_monthly_tokens').replaceFirst('%s', '$monthlyGrant');
+    }
+    final nextGrant = DateTime(
+      grantedAt.year,
+      grantedAt.month + 1,
+      grantedAt.day,
+    );
+    final daysLeft = nextGrant.difference(DateTime.now()).inDays;
+    if (daysLeft <= 0) {
+      return context.tr('next_grant_available').replaceFirst('%s', '$monthlyGrant');
+    }
+    return context.tr('includes_tokens_next_in')
+        .replaceFirst('%s', '$monthlyGrant')
+        .replaceFirst('%s', '$daysLeft');
   }
 }

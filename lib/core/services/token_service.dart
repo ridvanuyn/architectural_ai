@@ -56,5 +56,37 @@ class TokenService {
     );
     return response['data'] ?? response;
   }
+
+  /// Grant tokens to current user (used for premium monthly bonus)
+  Future<Map<String, dynamic>> grantTokens({
+    required int amount,
+    String? reason,
+  }) async {
+    final response = await _client.post(
+      ApiConfig.tokenGrant,
+      body: {
+        'amount': amount,
+        if (reason != null) 'reason': reason,
+      },
+    );
+    return response['data'] ?? response;
+  }
+
+  /// Refund tokens after a failed design generation
+  Future<Map<String, dynamic>> refundTokens({
+    String? designId,
+    required int amount,
+    String? reason,
+  }) async {
+    final response = await _client.post(
+      ApiConfig.tokenRefund,
+      body: {
+        if (designId != null) 'designId': designId,
+        'amount': amount,
+        if (reason != null) 'reason': reason,
+      },
+    );
+    return response['data'] ?? response;
+  }
 }
 

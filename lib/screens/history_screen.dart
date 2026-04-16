@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../core/localization/localization_extension.dart';
@@ -20,13 +21,45 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  String _selectedFilter = 'All Styles';
+  final ScrollController _scrollController = ScrollController();
+  bool _headerVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final dir = _scrollController.position.userScrollDirection;
+    if (dir == ScrollDirection.reverse && _headerVisible) {
+      setState(() => _headerVisible = false);
+    } else if (dir == ScrollDirection.forward && !_headerVisible) {
+      setState(() => _headerVisible = true);
+    }
+  }
+
+  /// Returns all designs held by the provider. Server-side scoping already
+  /// limits results to the authenticated user (see backend `/api/designs`
+  /// which filters by `req.user.id`), so we don't need to re-filter here.
+  /// Local/simulated designs fall through unchanged.
+  List filterDesignsForCurrentUser(AppProvider appProvider) {
+    return appProvider.designs;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, appProvider, child) {
-        final designs = appProvider.designs;
+        final designs = filterDesignsForCurrentUser(appProvider);
+        final isLoggedIn = appProvider.user != null;
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -34,62 +67,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          context.tr('history'),
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 200),
+                  crossFadeState: _headerVisible
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  firstChild: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      context.tr('history'),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.search, color: AppColors.textPrimary),
-                      ),
-                    ],
+                    ),
                   ),
+                  secondChild: const SizedBox(height: 0, width: double.infinity),
                 ),
-                // Filters
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      _FilterChip(
-                        label: 'Date',
-                        icon: Icons.calendar_today_outlined,
-                        isSelected: false,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: 'Style',
-                        icon: Icons.auto_awesome_outlined,
-                        isSelected: false,
-                        onTap: () {},
-                      ),
-                      const SizedBox(width: 8),
-                      _FilterChip(
-                        label: _selectedFilter,
-                        isSelected: true,
-                        onTap: () {
-                          _showFilterSheet(context);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Masonry Grid
                 Expanded(
                   child: designs.isEmpty
-                      ? _EmptyState()
+                      ? _EmptyState(isLoggedIn: isLoggedIn)
                       : _buildMasonryGrid(context, appProvider, designs),
                 ),
               ],
@@ -124,6 +122,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,155 +135,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Filter by Style',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  'All Styles',
-                  'Japandi',
-                  'Modern',
-                  'Scandinavian',
-                  'Industrial',
-                  'Minimal',
-                  'Luxury',
-                ].map((style) {
-                  return ChoiceChip(
-                    label: Text(style),
-                    selected: _selectedFilter == style,
-                    onSelected: (selected) {
-                      setState(() => _selectedFilter = style);
-                      Navigator.pop(context);
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _EmptyState extends StatelessWidget {
+  const _EmptyState({this.isLoggedIn = false});
+  final bool isLoggedIn;
+
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.tagBackground,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.photo_library_outlined,
-              size: 36,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No designs yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start creating your first design!',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData? icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: isSelected ? Colors.white : AppColors.textSecondary,
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.15),
+                    AppColors.primary.withValues(alpha: 0.05),
+                  ],
+                ),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+              child: Icon(
+                Icons.auto_awesome_outlined,
+                size: 56,
+                color: AppColors.primary,
               ),
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.keyboard_arrow_down,
-                size: 16,
-                color: Colors.white,
+            const SizedBox(height: 24),
+            Text(
+              context.tr('no_designs'),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
-            ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isLoggedIn
+                  ? context.tr('start_creating')
+                  : context.tr('start_first_design'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textMuted,
+              ),
+            ),
           ],
         ),
       ),
@@ -358,7 +262,7 @@ class _HistoryMasonryCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          design.styleName ?? 'Design',
+                          design.styleName ?? context.tr('design_fallback_name'),
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

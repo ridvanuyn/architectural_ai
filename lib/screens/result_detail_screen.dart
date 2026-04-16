@@ -8,8 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/localization/localization_extension.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
+import '../core/services/paywall_helper.dart';
 import '../core/services/recommendation_service.dart';
 import '../theme/app_theme.dart';
 import 'home_shell.dart';
@@ -29,6 +31,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
   bool _isExporting = false;
   List<RecommendationItem> _recommendations = [];
   bool _loadingRecommendations = true;
+  int _mainImageRetry = 0;
 
   @override
   void initState() {
@@ -61,36 +64,97 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
     }
   }
 
+  Widget _errorPlaceholder(String reason) {
+    return GestureDetector(
+      onTap: () {
+        HapticService.lightImpact();
+        setState(() => _mainImageRetry++);
+      },
+      child: Container(
+        color: Colors.grey.shade200,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.broken_image, size: 40, color: Colors.grey),
+            const SizedBox(height: 6),
+            Text(
+              context.tr('error_label'),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+                color: Colors.red.shade700,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              reason,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              context.tr('tap_to_retry'),
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSmartImage(String? url) {
     if (url == null || url.isEmpty) {
-      return Container(
-        color: Colors.grey.shade200,
-        child: const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
-      );
+      return _errorPlaceholder('no image');
     }
     if (url.startsWith('/') || url.startsWith('file://')) {
       final file = File(url.replaceFirst('file://', ''));
       if (file.existsSync()) {
-        return Image.file(file, fit: BoxFit.cover);
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, e, __) {
+            debugPrint('[result_detail] local image error: $e for $url');
+            return _errorPlaceholder('local error');
+          },
+        );
       }
+      return _errorPlaceholder('file missing');
     }
     if (url.startsWith('http')) {
+      final bustedUrl = _mainImageRetry > 0
+          ? '$url${url.contains('?') ? '&' : '?'}_r=$_mainImageRetry'
+          : url;
       return Image.network(
-        url,
+        bustedUrl,
+        key: ValueKey('$url#$_mainImageRetry'),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          color: Colors.grey.shade200,
-          child: const Center(child: Icon(Icons.broken_image, size: 48, color: Colors.grey)),
-        ),
+        errorBuilder: (_, e, __) {
+          debugPrint('[result_detail] network image error for $url: $e');
+          return _errorPlaceholder('network error');
+        },
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: Colors.grey.shade200,
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
       );
     }
-    return Container(color: Colors.grey.shade200);
+    return _errorPlaceholder('unsupported');
   }
 
   Future<void> _exportHighRes(String? imageUrl) async {
     if (imageUrl == null || imageUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No image available to export')),
+        SnackBar(content: Text(context.tr('no_image_export'))),
       );
       return;
     }
@@ -123,11 +187,11 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text('Saved to Photos'),
+                const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(context.tr('saved_to_photos')),
               ],
             ),
             backgroundColor: Colors.green.shade600,
@@ -141,7 +205,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save: ${e.toString()}'),
+            content: Text('${context.tr('save_failed')}: ${e.toString()}'),
             backgroundColor: Colors.red.shade600,
           ),
         );
@@ -175,9 +239,9 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
               },
               icon: const Icon(Icons.close, size: 24),
             ),
-            title: const Text(
-              'Result Detail',
-              style: TextStyle(
+            title: Text(
+              context.tr('result_detail'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -214,10 +278,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                     children: [
                       Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Want to redesign another room?',
-                          style: TextStyle(
+                          context.tr('redesign_another'),
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: AppColors.textPrimary,
@@ -241,9 +305,9 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        child: const Text(
-                          'New Room',
-                          style: TextStyle(
+                        child: Text(
+                          context.tr('new_room'),
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -279,14 +343,14 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.check_circle, size: 14, color: Colors.white),
-                                      SizedBox(width: 4),
+                                      const Icon(Icons.check_circle, size: 14, color: Colors.white),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        'AI Enhanced',
-                                        style: TextStyle(
+                                        context.tr('ai_enhanced'),
+                                        style: const TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white,
@@ -308,7 +372,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           Expanded(
                             child: _QuickAction(
                               icon: Icons.camera_alt,
-                              label: 'New Photo',
+                              label: context.tr('new_photo'),
                               onTap: () {
                                 HapticService.lightImpact();
                                 appProvider.clearSelection();
@@ -324,7 +388,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           Expanded(
                             child: _QuickAction(
                               icon: Icons.style,
-                              label: 'New Style',
+                              label: context.tr('new_style'),
                               onTap: () {
                                 HapticService.lightImpact();
                                 Navigator.pushNamed(
@@ -338,7 +402,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           Expanded(
                             child: _QuickAction(
                               icon: Icons.share,
-                              label: 'Share',
+                              label: context.tr('share'),
                               onTap: () async {
                                 HapticService.lightImpact();
                                 final url = currentDesign?.transformedImageUrl;
@@ -356,7 +420,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                                   }
                                   await Share.shareXFiles(
                                     [XFile(filePath)],
-                                    text: 'My AI redesigned room!',
+                                    text: context.tr('share_design_short'),
                                   );
                                 } catch (_) {}
                               },
@@ -385,7 +449,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                                   ),
                                 )
                               : const Icon(Icons.download, size: 18),
-                          label: Text(_isExporting ? 'Saving...' : 'Export High-Res'),
+                          label: Text(_isExporting ? context.tr('saving') : context.tr('export_hires')),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -393,8 +457,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             HapticService.mediumImpact();
+                            final canProceed = await ensureTokensOrPaywall(context);
+                            if (!canProceed || !context.mounted) return;
                             Navigator.pushNamed(context, '/styles');
                           },
                           child: Container(
@@ -410,14 +476,14 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                                 ),
                               ],
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.auto_awesome, size: 18, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text('Create Better Version', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-                                SizedBox(width: 10),
-                                Text('50% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.yellowAccent)),
+                                const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(context.tr('create_better_version'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                                const SizedBox(width: 10),
+                                Text(context.tr('fifty_percent_off'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.yellowAccent)),
                               ],
                             ),
                           ),
@@ -430,9 +496,9 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           children: [
                             Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Recommended Styles',
-                              style: TextStyle(
+                            Text(
+                              context.tr('recommended_styles'),
+                              style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textPrimary,
@@ -442,7 +508,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Based on your recent designs',
+                          context.tr('recommended_desc'),
                           style: TextStyle(
                             fontSize: 13,
                             color: AppColors.textSecondary,
@@ -462,9 +528,36 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                           itemBuilder: (context, index) {
                             final item = _recommendations[index];
                             return GestureDetector(
-                              onTap: () {
+                              onTap: () async {
                                 HapticService.lightImpact();
-                                Navigator.pushNamed(context, StyleSelectionScreen.routeName);
+                                final appProvider = context.read<AppProvider>();
+                                if (item.isWorld) {
+                                  // World: push the prompt + name into provider
+                                  // so the Style Selection preview and create
+                                  // flow pick this recommendation, not the old one.
+                                  appProvider.setSelectedStyle(null);
+                                  appProvider.setSelectedWorldPrompt(
+                                    item.prompt,
+                                    worldName: item.name,
+                                  );
+                                } else {
+                                  // Style: match against provider.styles by id.
+                                  final match = appProvider.styles
+                                      .cast<dynamic>()
+                                      .firstWhere(
+                                        (s) => s.id == item.id,
+                                        orElse: () => null,
+                                      );
+                                  if (match != null) {
+                                    appProvider.setSelectedStyle(match);
+                                    appProvider.clearWorldPrompt();
+                                  }
+                                }
+                                if (!context.mounted) return;
+                                Navigator.pushNamed(
+                                  context,
+                                  StyleSelectionScreen.routeName,
+                                );
                               },
                               child: Container(
                                 decoration: BoxDecoration(

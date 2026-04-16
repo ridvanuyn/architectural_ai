@@ -7,6 +7,8 @@ PODS:
     - FlutterMacOS
   - image_picker_ios (0.0.1):
     - Flutter
+  - in_app_review (2.0.0):
+    - Flutter
   - purchases_flutter (9.16.1):
     - Flutter
     - PurchasesHybridCommon (= 17.55.1)
@@ -29,17 +31,21 @@ PODS:
   - sqflite_darwin (0.0.4):
     - Flutter
     - FlutterMacOS
+  - url_launcher_ios (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - gal (from `.symlinks/plugins/gal/darwin`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - in_app_review (from `.symlinks/plugins/in_app_review/ios`)
   - purchases_flutter (from `.symlinks/plugins/purchases_flutter/ios`)
   - purchases_ui_flutter (from `.symlinks/plugins/purchases_ui_flutter/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -57,6 +63,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/gal/darwin"
   image_picker_ios:
     :path: ".symlinks/plugins/image_picker_ios/ios"
+  in_app_review:
+    :path: ".symlinks/plugins/in_app_review/ios"
   purchases_flutter:
     :path: ".symlinks/plugins/purchases_flutter/ios"
   purchases_ui_flutter:
@@ -67,12 +75,15 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   sqflite_darwin:
     :path: ".symlinks/plugins/sqflite_darwin/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
   gal: baecd024ebfd13c441269ca7404792a7152fde89
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
+  in_app_review: 7dd1ea365263f834b8464673f9df72c80c17c937
   purchases_flutter: b44fcb4ff5e68a4dfe53fd0c339683803b04dd2c
   purchases_ui_flutter: 64afab2a2adc79a73ed5ca77f416c8d360a12734
   PurchasesHybridCommon: ecd9d7c586287625f1225b8de5e24c1021502270
@@ -82,7 +93,8 @@ SPEC CHECKSUMS:
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: 0729af0b7cf7e1f53fc07d91de8fff3f7f010567
 
 COCOAPODS: 1.16.2

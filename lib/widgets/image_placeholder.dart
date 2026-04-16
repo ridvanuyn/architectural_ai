@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/localization/localization_extension.dart';
+
 class ImagePlaceholder extends StatelessWidget {
   const ImagePlaceholder({
     super.key,
@@ -36,7 +38,7 @@ class ImagePlaceholder extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            label ?? 'Preview',
+            label ?? context.tr('preview'),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),

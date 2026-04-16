@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/localization/localization_extension.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
 import '../core/services/notification_service.dart';
@@ -191,7 +192,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(appProvider.error ?? 'Failed to create design'),
+          content: Text(appProvider.error ?? context.tr('create_design_failed')),
           backgroundColor: Colors.red,
         ),
       );
@@ -258,9 +259,9 @@ class _ProcessingScreenState extends State<ProcessingScreen>
               },
               icon: const Icon(Icons.close, size: 24),
             ),
-            title: const Text(
-              'AI Redesign',
-              style: TextStyle(
+            title: Text(
+              context.tr('ai_redesign'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -409,7 +410,7 @@ class _ProcessingScreenState extends State<ProcessingScreen>
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '2 tokens will be used for this render',
+                        context.tr('tokens_will_be_used'),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textMuted,
@@ -482,16 +483,16 @@ class _RatingDialogState extends State<_RatingDialog> {
               child: const Icon(Icons.auto_awesome, size: 30, color: Colors.white),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'Enjoying Architectural AI?',
+            Text(
+              context.tr('enjoying_app'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1D)),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1C1D)),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Your design is ready! Rate your experience to help us improve.',
+            Text(
+              context.tr('rating_dialog_desc'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.4),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.4),
             ),
             const SizedBox(height: 20),
             // Stars
@@ -527,7 +528,7 @@ class _RatingDialogState extends State<_RatingDialog> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
-                  'Rate & See Your Design',
+                  context.tr('rate_see_design'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -541,9 +542,9 @@ class _RatingDialogState extends State<_RatingDialog> {
             // Later button
             TextButton(
               onPressed: widget.onLater,
-              child: const Text(
-                'Maybe Later',
-                style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+              child: Text(
+                context.tr('maybe_later'),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
               ),
             ),
           ],

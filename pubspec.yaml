@@ -27,6 +27,7 @@ dependencies:
   # Image Handling
   image_picker: ^1.0.7
   cached_network_image: ^3.3.1
+  image: ^4.5.3
   
   # Notifications
   flutter_local_notifications: ^17.2.1
@@ -48,6 +49,9 @@ dependencies:
   purchases_flutter: ^9.12.3
   purchases_ui_flutter: ^9.12.3
   uuid: ^4.3.3
+
+  # In-App Review (native App Store / Play Store prompt)
+  in_app_review: ^2.0.9
 
 dev_dependencies:
   flutter_test:

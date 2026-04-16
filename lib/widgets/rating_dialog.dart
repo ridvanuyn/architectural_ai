@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/localization/localization_extension.dart';
 import '../core/services/haptic_service.dart';
 import '../theme/app_theme.dart';
 
@@ -160,9 +161,9 @@ class _RatingDialogState extends State<RatingDialog>
                                 size: 20,
                               ),
                               const SizedBox(width: 8),
-                              const Text(
-                                '10 TOKENS FREE',
-                                style: TextStyle(
+                              Text(
+                                context.tr('ten_tokens_free'),
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -175,9 +176,9 @@ class _RatingDialogState extends State<RatingDialog>
                       ),
                       const SizedBox(height: 20),
                       // Title
-                      const Text(
-                        'Rate Your Design! ⭐',
-                        style: TextStyle(
+                      Text(
+                        '${context.tr('rate_design')} ⭐',
+                        style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
@@ -185,7 +186,7 @@ class _RatingDialogState extends State<RatingDialog>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'How did the AI transformation turn out?\nRate now and get 10 free tokens!',
+                        context.tr('rate_design_compound'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -232,7 +233,7 @@ class _RatingDialogState extends State<RatingDialog>
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
-                      _getRatingText(),
+                      _getRatingText(context),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -269,7 +270,7 @@ class _RatingDialogState extends State<RatingDialog>
                               : Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text('Submit & Get Tokens'),
+                                    Text(context.tr('submit_get_tokens')),
                                     const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -293,7 +294,7 @@ class _RatingDialogState extends State<RatingDialog>
                       TextButton(
                         onPressed: _skipRating,
                         child: Text(
-                          'Maybe Later',
+                          context.tr('maybe_later'),
                           style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 14,
@@ -313,18 +314,18 @@ class _RatingDialogState extends State<RatingDialog>
     );
   }
 
-  String _getRatingText() {
+  String _getRatingText(BuildContext context) {
     switch (_selectedRating) {
       case 1:
-        return 'Not great 😔';
+        return context.tr('rating_1');
       case 2:
-        return 'Could be better 🤔';
+        return context.tr('rating_2');
       case 3:
-        return 'Pretty good! 👍';
+        return context.tr('rating_3');
       case 4:
-        return 'Love it! 😍';
+        return context.tr('rating_4');
       case 5:
-        return 'Amazing! Perfect! 🤩';
+        return context.tr('rating_5');
       default:
         return '';
     }

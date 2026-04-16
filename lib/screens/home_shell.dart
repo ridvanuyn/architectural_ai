@@ -13,12 +13,21 @@ class HomeShell extends StatefulWidget {
 
   static const routeName = '/home';
 
+  /// Find the HomeShell state from descendant widgets to control tabs.
+  static HomeShellState? of(BuildContext context) =>
+      context.findAncestorStateOfType<HomeShellState>();
+
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  State<HomeShell> createState() => HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
+
+  void setTab(int index) {
+    if (index < 0 || index >= _screens.length) return;
+    setState(() => _currentIndex = index);
+  }
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -71,7 +80,7 @@ class _HomeShellState extends State<HomeShell> {
                 _NavItem(
                   icon: Icons.add_circle_outline,
                   selectedIcon: Icons.add_circle,
-                  label: 'Create',
+                  label: context.tr('nav_create'),
                   isSelected: _currentIndex == 2,
                   onTap: () => setState(() => _currentIndex = 2),
                   isProminent: true,
@@ -142,9 +151,9 @@ class _NavItem extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 3),
-            const Text(
-              'CREATE',
-              style: TextStyle(
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
                 color: prominentColor,

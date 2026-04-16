@@ -60,17 +60,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
-    // Celebration haptic for completing onboarding
     await HapticService.success();
-    
-    // Complete onboarding in provider
+
     if (mounted) {
-      await context.read<AppProvider>().completeOnboarding();
+      final provider = context.read<AppProvider>();
+      await provider.completeOnboarding();
+      await provider.grantWelcomeTokensIfFirstTime();
     }
-    
-    // Show welcome bonus notification
+
     await NotificationService().showWelcomeBonus();
-    
+
     if (mounted) {
       Navigator.pushReplacementNamed(context, HomeShell.routeName);
     }
@@ -207,7 +206,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(_pageIndex == _totalPages - 1 ? 'Get Started' : 'Next'),
+                            Text(_pageIndex == _totalPages - 1 ? context.tr('get_started') : context.tr('next')),
                             const SizedBox(width: 8),
                             const Icon(Icons.arrow_forward, size: 18),
                           ],
@@ -218,7 +217,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
                         child: Text(
-                          'By continuing, you agree to our Terms of Service and Privacy Policy regarding local data handling.',
+                          context.tr('onboarding_terms_notice'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,
@@ -255,9 +254,9 @@ class _UnlimitedPossibilitiesPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          const Text(
-            '1000+ Design Themes',
-            style: TextStyle(
+          Text(
+            context.tr('onboarding_themes_title'),
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
@@ -265,7 +264,7 @@ class _UnlimitedPossibilitiesPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'From minimalist zen to cyberpunk neon — explore an endless library of AI-powered styles or create your own unique aesthetic.',
+            context.tr('onboarding_themes_desc'),
             style: TextStyle(
               fontSize: 15,
               color: AppColors.textSecondary,
@@ -366,7 +365,7 @@ class _UnlimitedPossibilitiesPage extends StatelessWidget {
                   Icon(Icons.token, size: 16, color: Colors.orange.shade700),
                   const SizedBox(width: 8),
                   Text(
-                    '1 TOKEN PER STYLE',
+                    context.tr('token_per_style'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -427,9 +426,9 @@ class _DreamsSavedPage extends StatelessWidget {
                       color: const Color(0xFF4CAF50),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'SAVED',
-                      style: TextStyle(
+                    child: Text(
+                      context.tr('saved_badge'),
+                      style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -462,17 +461,17 @@ class _DreamsSavedPage extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'ON-DEVICE STORAGE',
-                              style: TextStyle(
+                              context.tr('on_device_storage'),
+                              style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary,
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            const Text(
-                              '100% Private',
-                              style: TextStyle(
+                            Text(
+                              context.tr('fully_private'),
+                              style: const TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textSecondary,
                               ),
@@ -489,10 +488,10 @@ class _DreamsSavedPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'Your Vision, AI Powered',
+          Text(
+            context.tr('onboarding_vision_title'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
@@ -501,7 +500,7 @@ class _DreamsSavedPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Simply snap a photo of any room and watch our AI transform it instantly. Customize every detail with natural language instructions.',
+            context.tr('onboarding_vision_desc'),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -511,9 +510,9 @@ class _DreamsSavedPage extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           // Feature list
-          _FeatureCheckItem(text: '1000+ Unique architectural styles'),
+          _FeatureCheckItem(text: context.tr('onboarding_feature_styles')),
           const SizedBox(height: 12),
-          _FeatureCheckItem(text: 'Token-based generation system'),
+          _FeatureCheckItem(text: context.tr('onboarding_feature_tokens')),
         ],
       ),
     );
@@ -620,12 +619,12 @@ class _ReadyToSeeMagicPageState extends State<_ReadyToSeeMagicPage> {
               gradient: const LinearGradient(colors: [Color(0xFF4400B6), Color(0xFF5D21DF)]),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.public, size: 14, color: Colors.white),
-                SizedBox(width: 6),
-                Text('ICONIC WORLDS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                const Icon(Icons.public, size: 14, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(context.tr('iconic_worlds_badge'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
               ],
             ),
           ),
@@ -683,14 +682,14 @@ class _ReadyToSeeMagicPageState extends State<_ReadyToSeeMagicPage> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Iconic Worlds Await',
+          Text(
+            context.tr('iconic_worlds_title'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
           const SizedBox(height: 10),
           Text(
-            'Transform your room into $names and many more. 1000+ themed universes to explore.',
+            context.tr('iconic_worlds_desc').replaceFirst('%s', names),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
           ),
@@ -807,9 +806,9 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
               color: AppColors.background,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
-              'Interactive Demo',
-              style: TextStyle(
+            child: Text(
+              context.tr('interactive_demo'),
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -817,9 +816,9 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Try it yourself.',
-            style: TextStyle(
+          Text(
+            context.tr('try_yourself'),
+            style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
@@ -827,7 +826,7 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
           ),
           const SizedBox(height: 6),
           Text(
-            'Tap a style, then slide to compare.',
+            context.tr('tap_style_slide'),
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -981,10 +980,10 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
                                           borderRadius:
                                               BorderRadius.circular(24),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            SizedBox(
+                                            const SizedBox(
                                               width: 16,
                                               height: 16,
                                               child:
@@ -993,10 +992,10 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
                                                 color: Colors.white,
                                               ),
                                             ),
-                                            SizedBox(width: 10),
+                                            const SizedBox(width: 10),
                                             Text(
-                                              'Generating...',
-                                              style: TextStyle(
+                                              context.tr('generating'),
+                                              style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                                 color: Colors.white,
@@ -1021,9 +1020,9 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
                                 color: const Color(0xFFFF9800),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
-                                'ORIGINAL',
-                                style: TextStyle(
+                              child: Text(
+                                context.tr('original_badge'),
+                                style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -1099,7 +1098,7 @@ class _InteractiveDemoPageState extends State<_InteractiveDemoPage>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Choose from 1000+ unique styles. Renders use 1 token each.',
+                  context.tr('onboarding_demo_info'),
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,

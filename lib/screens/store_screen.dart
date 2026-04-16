@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,7 @@ import '../core/localization/localization_extension.dart';
 import '../core/models/specialty_world.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
+import '../core/services/paywall_helper.dart';
 import '../core/services/world_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
@@ -28,31 +31,123 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> {
   final WorldService _worldService = WorldService();
-  late List<SpecialtyWorld> _worlds;
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  List<SpecialtyWorld> _worlds = [];
+  bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasError = false;
+  bool _autoRetryScheduled = false;
+  int _currentPage = 1;
+  int _totalPages = 1;
+  String _searchQuery = '';
+  bool _headerVisible = true;
+  // Debounce timer for search
+  DateTime? _lastSearchTime;
 
   @override
   void initState() {
     super.initState();
-    debugPrint('StoreScreen initState called');
-    // Initialize with default worlds immediately
-    _worlds = _defaultWorlds();
-    debugPrint('Default worlds loaded: ${_worlds.length}');
-    // Then try to fetch from API
-    _loadWorldsFromApi();
+    _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onSearchChanged);
+    _loadWorlds();
   }
 
-  Future<void> _loadWorldsFromApi() async {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 300) {
+      _loadMore();
+    }
+
+    final dir = _scrollController.position.userScrollDirection;
+    if (dir == ScrollDirection.reverse && _headerVisible) {
+      setState(() => _headerVisible = false);
+    } else if (dir == ScrollDirection.forward && !_headerVisible) {
+      setState(() => _headerVisible = true);
+    }
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text;
+    _lastSearchTime = DateTime.now();
+    final capturedTime = _lastSearchTime;
+    // Debounce: 300ms
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (_lastSearchTime == capturedTime && mounted) {
+        if (query != _searchQuery) {
+          _searchQuery = query;
+          _currentPage = 1;
+          _loadWorlds();
+        }
+      }
+    });
+  }
+
+  Future<void> _loadWorlds() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
     try {
-      final worlds = await _worldService.getWorlds();
-      if (mounted && worlds.isNotEmpty) {
-        // FULLY replace defaults with API data (includes S3 image URLs)
+      final result = await _worldService.searchWorlds(
+        query: _searchQuery,
+        page: 1,
+        limit: 20,
+      );
+      if (mounted) {
         setState(() {
-          _worlds = worlds;
+          _worlds = result['worlds'] as List<SpecialtyWorld>;
+          _currentPage = result['page'] as int;
+          _totalPages = result['totalPages'] as int;
+          _isLoading = false;
+          _hasError = false;
+          _autoRetryScheduled = false;
         });
       }
     } catch (e) {
-      debugPrint('Failed to load worlds from API: $e - using defaults');
-      // Keep the default worlds on error
+      debugPrint('Failed to load worlds: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = _worlds.isEmpty;
+        });
+        if (_hasError && !_autoRetryScheduled) {
+          _autoRetryScheduled = true;
+          Timer(const Duration(seconds: 2), () {
+            if (mounted && _hasError) _loadWorlds();
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || _currentPage >= _totalPages) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final result = await _worldService.searchWorlds(
+        query: _searchQuery,
+        page: _currentPage + 1,
+        limit: 20,
+      );
+      if (mounted) {
+        setState(() {
+          _worlds.addAll(result['worlds'] as List<SpecialtyWorld>);
+          _currentPage = result['page'] as int;
+          _totalPages = result['totalPages'] as int;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -113,19 +208,13 @@ class _StoreScreenState extends State<StoreScreen> {
   final ImagePicker _picker = ImagePicker();
   SpecialtyWorld? _selectedWorld;
 
-  void _onWorldSelected(SpecialtyWorld world) {
+  Future<void> _onWorldSelected(SpecialtyWorld world) async {
     HapticService.mediumImpact();
     final appProvider = context.read<AppProvider>();
 
-    if (!appProvider.hasEnoughTokens) {
-      HapticService.error();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Not enough tokens. Buy more to continue.')),
-      );
-      return;
-    }
+    final canProceed = await ensureTokensOrPaywall(context);
+    if (!canProceed || !mounted) return;
 
-    // Set the world prompt and go to step wizard to pick photo + options
     appProvider.setSelectedWorldPrompt(world.prompt, worldName: world.name);
     _showImageSourceDialog(world);
   }
@@ -192,9 +281,9 @@ class _StoreScreenState extends State<StoreScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Select Your Room Photo',
-              style: TextStyle(
+            Text(
+              context.tr('select_room_photo_title'),
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -202,7 +291,7 @@ class _StoreScreenState extends State<StoreScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Your room will be transformed into this style',
+              context.tr('transform_subtitle'),
               style: TextStyle(
                 fontSize: 13,
                 color: AppColors.textMuted,
@@ -214,10 +303,11 @@ class _StoreScreenState extends State<StoreScreen> {
                 Expanded(
                   child: _ImageSourceButton(
                     icon: Icons.camera_alt,
-                    label: 'Camera',
+                    label: context.tr('camera'),
                     onTap: () async {
+                      final appProvider = context.read<AppProvider>();
                       Navigator.pop(ctx);
-                      await _pickImageAndCreate(ImageSource.camera, world);
+                      await _pickImageAndCreate(ImageSource.camera, world, appProvider);
                     },
                   ),
                 ),
@@ -225,10 +315,11 @@ class _StoreScreenState extends State<StoreScreen> {
                 Expanded(
                   child: _ImageSourceButton(
                     icon: Icons.photo_library,
-                    label: 'Gallery',
+                    label: context.tr('gallery'),
                     onTap: () async {
+                      final appProvider = context.read<AppProvider>();
                       Navigator.pop(ctx);
-                      await _pickImageAndCreate(ImageSource.gallery, world);
+                      await _pickImageAndCreate(ImageSource.gallery, world, appProvider);
                     },
                   ),
                 ),
@@ -241,7 +332,7 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  Future<void> _pickImageAndCreate(ImageSource source, SpecialtyWorld world) async {
+  Future<void> _pickImageAndCreate(ImageSource source, SpecialtyWorld world, AppProvider appProvider) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
@@ -251,26 +342,15 @@ class _StoreScreenState extends State<StoreScreen> {
       );
 
       if (pickedFile != null && mounted) {
-        final appProvider = context.read<AppProvider>();
+        // Re-check tokens after the async picker (paywall may be needed).
+        final canProceed = await ensureTokensOrPaywall(context);
+        if (!canProceed || !mounted) return;
 
-        // Set the image and world prompt
-        appProvider.setSelectedImage(File(pickedFile.path));
+        await appProvider.setSelectedImage(File(pickedFile.path));
+        if (!mounted) return;
         appProvider.setSelectedWorldPrompt(world.prompt, worldName: world.name);
 
         HapticService.success();
-
-        // Check tokens
-        if (!appProvider.hasEnoughTokens) {
-          HapticService.error();
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Not enough tokens. Buy more to continue.')),
-            );
-          }
-          return;
-        }
-
-        // Navigate to step wizard for extra options (tier, custom, etc.)
         if (mounted) {
           Navigator.pushNamed(context, StyleSelectionScreen.routeName);
         }
@@ -279,7 +359,7 @@ class _StoreScreenState extends State<StoreScreen> {
       debugPrint('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
+          SnackBar(content: Text('${context.tr('pick_image_failed')}: $e')),
         );
       }
     }
@@ -340,7 +420,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: Text(context.tr('cancel')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -353,7 +433,12 @@ class _StoreScreenState extends State<StoreScreen> {
                       // After unlock, show image picker
                       _showImageSourceDialog(world);
                     },
-                    child: Text('Unlock for \$${world.price.toStringAsFixed(2)}'),
+                    child: Text(
+                      context.tr('unlock_for').replaceFirst(
+                        '%s',
+                        '\$${world.price.toStringAsFixed(2)}',
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -365,7 +450,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 // TODO: Navigate to Pro subscription
               },
               child: Text(
-                'Get PRO for unlimited access',
+                context.tr('get_pro_cta'),
                 style: TextStyle(color: AppColors.primary),
               ),
             ),
@@ -377,254 +462,285 @@ class _StoreScreenState extends State<StoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('StoreScreen build called, worlds count: ${_worlds.length}');
-    final appProvider = context.watch<AppProvider>();
-    final isPro = appProvider.isPremium;
-
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Store',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(_headerVisible ? kToolbarHeight : 0),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: _headerVisible ? kToolbarHeight : 0,
+          child: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            title: Text(
+              context.tr('store'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            centerTitle: true,
           ),
         ),
-        centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // =================== NEED A BOOST ===================
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF6C63FF), // Vivid purple
-                  Color(0xFF3B82F6), // Electric blue
-                  Color(0xFF06B6D4), // Cyan accent
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6C63FF).withValues(alpha: 0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Search Bar
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: context.tr('search_worlds_hint'),
+                  hintStyle: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 15,
+                  ),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF9CA3AF)),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 20, color: Color(0xFF9CA3AF)),
+                          onPressed: () {
+                            _searchController.clear();
+                            _searchQuery = '';
+                            _currentPage = 1;
+                            _loadWorlds();
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: const Color(0xFFF3F4F6),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+                  ),
                 ),
-              ],
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          ),
+
+          // Pro Banner
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFFFFD700),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.bolt, color: Colors.yellowAccent, size: 24),
+                      child: const Icon(
+                        Icons.workspace_premium,
+                        color: Color(0xFF1A1A1A),
+                        size: 24,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                    const SizedBox(width: 14),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Need a Boost?',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                            context.tr('free_for_pro'),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
                               color: Colors.white,
-                              letterSpacing: -0.5,
                             ),
                           ),
-                          SizedBox(height: 2),
                           Text(
-                            'Get tokens to transform any room instantly',
+                            context.tr('unlock_all_worlds'),
                             style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white70,
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // Token pack cards
-                _BoostPackCard(
-                  tokens: 10,
-                  price: '\$9.99',
-                  perToken: '\$1.00',
-                  label: 'Starter',
-                  icon: Icons.flash_on,
-                  isBestValue: false,
-                  savings: null,
-                  onTap: () {
-                    HapticService.mediumImpact();
-                    // TODO: Trigger purchase
-                  },
-                ),
-                const SizedBox(height: 10),
-                _BoostPackCard(
-                  tokens: 35,
-                  price: '\$24.99',
-                  perToken: '\$0.71',
-                  label: 'Most Popular',
-                  icon: Icons.local_fire_department,
-                  isBestValue: true,
-                  savings: '29%',
-                  onTap: () {
-                    HapticService.mediumImpact();
-                    // TODO: Trigger purchase
-                  },
-                ),
-                const SizedBox(height: 10),
-                _BoostPackCard(
-                  tokens: 100,
-                  price: '\$59.99',
-                  perToken: '\$0.60',
-                  label: 'Best Value',
-                  icon: Icons.diamond,
-                  isBestValue: false,
-                  savings: '40%',
-                  onTap: () {
-                    HapticService.mediumImpact();
-                    // TODO: Trigger purchase
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Pro Banner
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD700),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.workspace_premium,
-                    color: Color(0xFF1A1A1A),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Free for PRO members',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                    const SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            // TODO: Navigate to Pro subscription
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Text(
+                              context.tr('upgrade_to_pro'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Title
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('specialty_worlds'),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.tr('specialty_worlds_desc'),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Loading / Error / Empty / Grid
+          if (_isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_hasError && _worlds.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud_off, size: 56, color: AppColors.textMuted),
+                      const SizedBox(height: 12),
                       Text(
-                        'Unlock all ${_worlds.length}+ Specialty Worlds',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.7),
+                        context.tr('failed_to_load'),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        context.tr('tap_retry'),
+                        style: TextStyle(fontSize: 13, color: AppColors.textMuted),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          HapticService.lightImpact();
+                          _autoRetryScheduled = false;
+                          _loadWorlds();
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: Text(context.tr('retry')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        // TODO: Navigate to Pro subscription
-                      },
-                      borderRadius: BorderRadius.circular(10),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        child: Text(
-                          'Upgrade\nto PRO',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ),
+              ),
+            )
+          else if (_worlds.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search_off, size: 48, color: AppColors.textMuted),
+                    const SizedBox(height: 12),
+                    Text(
+                      context.tr('no_worlds_search'),
+                      style: TextStyle(fontSize: 16, color: AppColors.textMuted),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.75,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final world = _worlds[index];
+                    return _WorldCard(
+                      world: world,
+                      onTap: () => _onWorldSelected(world),
+                    );
+                  },
+                  childCount: _worlds.length,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 28),
 
-          // Specialty Worlds Title
-          const Text(
-            'Specialty Worlds',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          // Loading more indicator
+          if (_isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Immersive themes for your next masterpiece.',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textMuted,
-            ),
-          ),
-          const SizedBox(height: 20),
 
-          // Worlds Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.75,
-            ),
-            itemCount: _worlds.length,
-            itemBuilder: (context, index) {
-              final world = _worlds[index];
-              return _WorldCard(
-                world: world,
-                onTap: () => _onWorldSelected(world),
-              );
-            },
+          // Bottom padding
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 20),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
@@ -698,7 +814,7 @@ class _WorldCard extends StatelessWidget {
                       color: const Color(0xFF10B981),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text('NEW', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                    child: Text(context.tr('new_badge'), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
                   ),
                 ),
               // Token cost badge

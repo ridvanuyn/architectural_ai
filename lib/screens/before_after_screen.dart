@@ -6,8 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../core/localization/localization_extension.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
+import '../core/services/paywall_helper.dart';
 import 'home_shell.dart';
 import 'result_detail_screen.dart';
 
@@ -24,6 +26,8 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
   double _sliderValue = 0.5;
   bool _isSaved = false;
   double _lastHapticPosition = 0.5;
+  // bumped to force Image.network reload after an error
+  int _imageRetryNonce = 0;
 
   @override
   void initState() {
@@ -34,32 +38,100 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
     });
   }
 
+  Widget _errorPlaceholder(String reason) {
+    return Container(
+      color: const Color(0xFFF3F3F5),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.broken_image, size: 36, color: Color(0xFF9CA3AF)),
+          const SizedBox(height: 6),
+          Text(
+            context.tr('error_label'),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+              color: Colors.red.shade700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            reason,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: () {
+              HapticService.lightImpact();
+              setState(() => _imageRetryNonce++);
+            },
+            icon: const Icon(Icons.refresh, size: 14),
+            label: Text(context.tr('retry'), style: const TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Build an image widget that handles both local file paths and network URLs.
   Widget _buildImage(String url, File? fallbackFile, Color placeholderColor) {
     // If it's a local file path
     if (url.startsWith('/') || url.startsWith('file://')) {
       final file = File(url.replaceFirst('file://', ''));
       if (file.existsSync()) {
-        return Image.file(file, fit: BoxFit.cover);
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, e, __) {
+            debugPrint('[before_after] local image error: $e');
+            return _errorPlaceholder('local image');
+          },
+        );
       }
     }
     // If we have a fallback local file (e.g. selectedImage)
     if ((url.isEmpty) && fallbackFile != null && fallbackFile.existsSync()) {
-      return Image.file(fallbackFile, fit: BoxFit.cover);
+      return Image.file(
+        fallbackFile,
+        fit: BoxFit.cover,
+        errorBuilder: (_, e, __) {
+          debugPrint('[before_after] fallback file error: $e');
+          return _errorPlaceholder('local fallback');
+        },
+      );
     }
     // Network URL
     if (url.startsWith('http')) {
+      final cacheBustUrl = _imageRetryNonce > 0
+          ? '$url${url.contains('?') ? '&' : '?'}_r=$_imageRetryNonce'
+          : url;
       return Image.network(
-        url,
+        cacheBustUrl,
+        key: ValueKey('$url#$_imageRetryNonce'),
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(color: placeholderColor),
+        errorBuilder: (_, e, __) {
+          debugPrint('[before_after] network image error for $url: $e');
+          return _errorPlaceholder('network error');
+        },
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: placeholderColor,
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
       );
     }
-    // Placeholder
-    return Container(
-      color: placeholderColor,
-      child: const Center(child: Icon(Icons.image, size: 48, color: Colors.grey)),
-    );
+    // Placeholder (empty URL and no file)
+    return _errorPlaceholder(url.isEmpty ? 'no image' : 'unsupported');
   }
 
   void _onSliderDrag(double delta, double width) {
@@ -108,12 +180,12 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
 
       await Share.shareXFiles(
         [XFile(filePath)],
-        text: 'Check out my AI redesigned room!',
+        text: context.tr('share_design_text'),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to share: $e')),
+          SnackBar(content: Text('${context.tr('share_failed')}: $e')),
         );
       }
     }
@@ -125,7 +197,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
     return Consumer<AppProvider>(
       builder: (context, appProvider, child) {
         final currentDesign = appProvider.currentDesign;
-        final styleName = currentDesign?.styleName ?? 'Redesigned';
+        final styleName = currentDesign?.styleName ?? context.tr('redesigned_fallback');
 
         // Get actual image sources from design
         // originalImageUrl may be a local file path or a network URL
@@ -184,9 +256,9 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                   color: const Color(0xFF5D21DF),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
-                                  'AI POWERED',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
+                                child: Text(
+                                  context.tr('ai_powered'),
+                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -218,7 +290,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Text(
-                            'Your space transformed with $styleName aesthetic — a beautiful blend of style and functionality.',
+                            context.tr('before_after_subtitle').replaceFirst('%s', styleName),
                             style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5),
                           ),
                         ),
@@ -265,7 +337,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                           color: Colors.black.withValues(alpha: 0.5),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: const Text('BEFORE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                                        child: Text(context.tr('before'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
                                       ),
                                     ),
                                     // AFTER label
@@ -277,7 +349,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                           color: const Color(0xFF5D21DF).withValues(alpha: 0.8),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
-                                        child: const Text('AFTER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
+                                        child: Text(context.tr('after'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5)),
                                       ),
                                     ),
                                     // Divider line
@@ -331,7 +403,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
-                                          _isSaved ? 'Saved' : 'Save',
+                                          _isSaved ? context.tr('saved') : context.tr('save'),
                                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1D)),
                                         ),
                                       ],
@@ -349,12 +421,12 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Row(
+                                    child: Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.share_outlined, size: 18, color: Color(0xFF1A1C1D)),
-                                        SizedBox(width: 6),
-                                        Text('Share', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1D))),
+                                        const Icon(Icons.share_outlined, size: 18, color: Color(0xFF1A1C1D)),
+                                        const SizedBox(width: 6),
+                                        Text(context.tr('share'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1C1D))),
                                       ],
                                     ),
                                   ),
@@ -375,8 +447,10 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                     children: [
                       // Create Better Version with 50% OFF
                       GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           HapticService.mediumImpact();
+                          final canProceed = await ensureTokensOrPaywall(context);
+                          if (!canProceed || !context.mounted) return;
                           Navigator.pushNamed(context, '/styles');
                         },
                         child: Container(
@@ -398,7 +472,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                             children: [
                               const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
                               const SizedBox(width: 8),
-                              const Text('Create Better Version', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                              Text(context.tr('create_better_version'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                               const SizedBox(width: 10),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -406,7 +480,7 @@ class _BeforeAfterScreenState extends State<BeforeAfterScreen> {
                                   color: Colors.yellowAccent,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text('50% OFF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF4400B6))),
+                                child: Text(context.tr('fifty_percent_off'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF4400B6))),
                               ),
                             ],
                           ),

@@ -1,5 +1,14 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+/// Base colors for the shimmer effect (classic Facebook / Instagram feel).
+const Color _kShimmerBase = Color(0xFFE5E7EB);
+const Color _kShimmerHighlight = Color(0xFFF5F5F5);
+
+/// An animated skeleton placeholder with a smooth left-to-right shimmer.
+///
+/// Keeps its public API (`width`, `height`, `borderRadius`) so existing
+/// callers don't need to change.
 class SkeletonLoader extends StatefulWidget {
   final double? width;
   final double? height;
@@ -18,19 +27,19 @@ class SkeletonLoader extends StatefulWidget {
 
 class _SkeletonLoaderState extends State<SkeletonLoader>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1300),
       vsync: this,
     )..repeat();
-    _animation = Tween<double>(begin: -2, end: 2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
-    );
+    // Linear tween sweeps the highlight band from off-screen left to
+    // off-screen right for a smooth continuous shimmer.
+    _animation = Tween<double>(begin: -1.5, end: 2.5).animate(_controller);
   }
 
   @override
@@ -41,32 +50,55 @@ class _SkeletonLoaderState extends State<SkeletonLoader>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
-            gradient: LinearGradient(
-              begin: Alignment(_animation.value - 1, 0),
-              end: Alignment(_animation.value + 1, 0),
-              colors: [
-                Colors.grey.shade200,
-                Colors.grey.shade100,
-                Colors.grey.shade200,
-              ],
-              stops: const [0.0, 0.5, 1.0],
+    final radius = widget.borderRadius ?? BorderRadius.circular(8);
+    return ClipRRect(
+      borderRadius: radius,
+      child: AnimatedBuilder(
+        animation: _animation,
+        builder: (context, _) {
+          return CustomPaint(
+            painter: _ShimmerPainter(position: _animation.value),
+            size: Size(widget.width ?? 0, widget.height ?? 0),
+            child: SizedBox(
+              width: widget.width,
+              height: widget.height,
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-/// A network image with skeleton loading placeholder
+/// Paints a diagonal base→highlight→base gradient whose highlight band is
+/// positioned via `Alignment(position, 0)`, driven by the parent tween.
+class _ShimmerPainter extends CustomPainter {
+  final double position;
+
+  const _ShimmerPainter({required this.position});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final gradient = LinearGradient(
+      begin: Alignment(position - 1, -1),
+      end: Alignment(position + 1, 1),
+      colors: const [_kShimmerBase, _kShimmerHighlight, _kShimmerBase],
+      stops: const [0.25, 0.5, 0.75],
+    );
+    final paint = Paint()..shader = gradient.createShader(rect);
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShimmerPainter oldDelegate) =>
+      oldDelegate.position != position;
+}
+
+/// A cached network image with an animated shimmer placeholder.
+///
+/// While loading it shows the shimmering [SkeletonLoader]; on error it
+/// falls back to a muted grey box with a small icon.
 class SkeletonImage extends StatelessWidget {
   final String imageUrl;
   final BoxFit fit;
@@ -86,26 +118,37 @@ class SkeletonImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (imageUrl.isEmpty) {
-      return SkeletonLoader(width: width, height: height, borderRadius: borderRadius);
-    }
-
-    return Image.network(
-      imageUrl,
-      fit: fit,
-      width: width,
-      height: height,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return SkeletonLoader(width: width, height: height, borderRadius: borderRadius);
-      },
-      errorBuilder: (_, __, ___) => Container(
+      return SkeletonLoader(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+        borderRadius: borderRadius,
+      );
+    }
+
+    final radius = borderRadius ?? BorderRadius.zero;
+    return ClipRRect(
+      borderRadius: radius,
+      child: CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: fit,
+        width: width,
+        height: height,
+        placeholder: (context, url) => SkeletonLoader(
+          width: width,
+          height: height,
           borderRadius: borderRadius,
         ),
-        child: const Icon(Icons.image, color: Colors.grey),
+        errorWidget: (context, url, error) => Container(
+          width: width,
+          height: height,
+          color: _kShimmerBase,
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.broken_image_outlined,
+            size: 20,
+            color: Color(0xFF9CA3AF),
+          ),
+        ),
       ),
     );
   }
