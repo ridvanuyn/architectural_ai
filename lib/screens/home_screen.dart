@@ -9,13 +9,14 @@ import '../core/models/style.dart';
 import '../core/providers/app_provider.dart';
 import '../core/services/haptic_service.dart';
 import '../core/services/paywall_helper.dart';
+import '../core/services/world_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/skeleton_loader.dart';
 import 'before_after_screen.dart';
 import 'history_screen.dart';
 import 'home_shell.dart';
 import 'inspiration_screen.dart';
-import 'purchase_screen.dart';
+import 'processing_screen.dart';
 import 'style_selection_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -59,6 +60,114 @@ class HomeScreen extends StatelessWidget {
 
       Navigator.pushNamed(context, StyleSelectionScreen.routeName);
     }
+  }
+
+  static const List<_QuickToolItem> _quickTools = [
+    _QuickToolItem(id: 'tool-clean-room', name: 'Clean Room', icon: Icons.cleaning_services_outlined),
+    _QuickToolItem(id: 'tool-delete-clutter', name: 'Remove 3 Items', icon: Icons.delete_sweep_outlined),
+    _QuickToolItem(id: 'tool-light-room', name: 'Light Room', icon: Icons.light_mode_outlined),
+    _QuickToolItem(id: 'tool-sunset-room', name: 'Sunset Glow', icon: Icons.wb_twilight_outlined),
+    _QuickToolItem(id: 'tool-add-plants', name: 'Add Plants', icon: Icons.local_florist_outlined),
+    _QuickToolItem(id: 'tool-cozy-mode', name: 'Cozy Mode', icon: Icons.fireplace_outlined),
+    _QuickToolItem(id: 'tool-night-mode', name: 'Night Mode', icon: Icons.nightlight_outlined),
+    _QuickToolItem(id: 'tool-expand-room', name: 'Expand Room', icon: Icons.open_in_full),
+  ];
+
+  void _quickToolTap(BuildContext context, String worldId) {
+    HapticService.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndProcess(context, ImageSource.camera, worldId);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F3F8),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.camera_alt_outlined, size: 22, color: Colors.grey.shade700),
+                    const SizedBox(width: 16),
+                    Text(context.tr('camera'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
+                    const Spacer(),
+                    Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndProcess(context, ImageSource.gallery, worldId);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F3F8),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.photo_library_outlined, size: 22, color: Colors.grey.shade700),
+                    const SizedBox(width: 16),
+                    Text(context.tr('gallery'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
+                    const Spacer(),
+                    Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndProcess(BuildContext context, ImageSource source, String worldId) async {
+    final canProceed = await ensureTokensOrPaywall(context);
+    if (!canProceed || !context.mounted) return;
+
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: source, maxWidth: 1920, maxHeight: 1920, imageQuality: 85);
+    if (file == null || !context.mounted) return;
+
+    final appProvider = context.read<AppProvider>();
+    await appProvider.setSelectedImage(File(file.path));
+    if (!context.mounted) return;
+
+    try {
+      final world = await WorldService().getWorld(worldId);
+      appProvider.setSelectedStyle(null);
+      appProvider.setSelectedWorldPrompt(world.prompt, worldName: world.name);
+      appProvider.setTier('pro');
+    } catch (_) {
+      if (context.mounted) Navigator.pushNamed(context, StyleSelectionScreen.routeName);
+      return;
+    }
+
+    if (!context.mounted) return;
+    HapticService.success();
+    Navigator.pushNamed(context, ProcessingScreen.routeName);
   }
 
   void _showImageSourceSheet(BuildContext context) {
@@ -268,122 +377,113 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Hero Card / Selected Photo Card
-                appProvider.selectedImage != null
-                    ? GestureDetector(
-                        onTap: () => _showImageSourceSheet(context),
-                        child: Container(
-                          height: 220,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Image.file(appProvider.selectedImage!, fit: BoxFit.cover),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withValues(alpha: 0.4),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 12,
-                                  left: 12,
-                                  right: 12,
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(vertical: 10),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.9),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.swap_horiz, size: 16),
-                                              const SizedBox(width: 6),
-                                              Text(context.tr('change_photo'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      GestureDetector(
-                                        onTap: () {
-                                          HapticService.lightImpact();
-                                          appProvider.clearSelectedImage();
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.withValues(alpha: 0.8),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: const Icon(Icons.delete_outline, size: 18, color: Colors.white),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: () => _showImageSourceSheet(context),
-                        child: Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [Color(0xFF4400B6), Color(0xFF5D21DF), Color(0xFF3B82F6)],
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.auto_awesome, size: 28, color: Colors.white.withValues(alpha: 0.9)),
-                                const SizedBox(height: 12),
-                                Text(
-                                  context.tr('home_hero_title'),
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    height: 1.1,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  context.tr('home_hero_subtitle'),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                // Hero Card — always visible, taps open image picker
+                GestureDetector(
+                  onTap: () => _showImageSourceSheet(context),
+                  child: Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      image: const DecorationImage(
+                        image: NetworkImage('https://architectural-ai-thumbnails.s3.eu-central-1.amazonaws.com/thumbnails/scandinavian-hygge.jpg'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.7),
+                            Colors.black.withValues(alpha: 0.3),
+                          ],
                         ),
                       ),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Redesign your\nspace instantly',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF4400B6), Color(0xFF5D21DF)],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_awesome, size: 16, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Start Creating',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Quick Tools Row
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _quickTools.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      final tool = _quickTools[index];
+                      return GestureDetector(
+                        onTap: () => _quickToolTap(context, tool.id),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F3F8),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE8E6F0), width: 0.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(tool.icon, size: 16, color: const Color(0xFF5D21DF)),
+                              const SizedBox(width: 6),
+                              Text(
+                                tool.name,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1A1C1D),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 // Recent Projects
                 if (appProvider.designs.isNotEmpty) ...[
                   const SizedBox(height: 28),
@@ -443,12 +543,12 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 28),
-                // Discover Styles
+                // Cinematic Bundles
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      context.tr('home_discover_styles'),
+                    const Text(
+                      'Cinematic Bundles',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -731,10 +831,7 @@ class _TokenBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         onTap: () {
           HapticService.lightImpact();
-          PurchaseScreen.showSheet(
-            context,
-            initialTab: PurchaseTab.tokens,
-          );
+          ensureTokensOrPaywall(context);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -1061,4 +1158,16 @@ class _DesignMasonryCard extends StatelessWidget {
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
+}
+
+
+class _QuickToolItem {
+  const _QuickToolItem({
+    required this.id,
+    required this.name,
+    required this.icon,
+  });
+  final String id;
+  final String name;
+  final IconData icon;
 }
